@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { chunkDocument, extractKeywords, generateNewContext } from '../chunkingService';
+import { chunkDocument, extractKeywords } from '../chunkingService';
 
 describe('chunkingService', () => {
     beforeEach(() => {
@@ -13,7 +13,7 @@ describe('chunkingService', () => {
 
             expect(result).toHaveLength(1);
             expect(result[0].title).toBe('Complete Text');
-            expect(global.fetch).not.toHaveBeenCalled();
+            expect(fetch).not.toHaveBeenCalled();
         });
 
         it('should call API and parse response for long texts', async () => {
@@ -29,14 +29,14 @@ describe('chunkingService', () => {
                 ])
             };
 
-            global.fetch.mockResolvedValueOnce({
+            fetch.mockResolvedValueOnce({
                 ok: true,
                 json: async () => mockResponse
             });
 
             const result = await chunkDocument(longText);
 
-            expect(global.fetch).toHaveBeenCalled();
+            expect(fetch).toHaveBeenCalled();
             expect(result).toHaveLength(1);
             expect(result[0].title).toBe('Test Chunk');
             expect(result[0].originalText).toContain('Sentence 1');
@@ -48,7 +48,7 @@ describe('chunkingService', () => {
                 response: '```json\n[\n  {\n    "title": "MD Chunk",\n    "summary": "MD summary",\n    "startIndex": 0,\n    "endIndex": 5\n  }\n]\n```'
             };
 
-            global.fetch.mockResolvedValueOnce({
+            fetch.mockResolvedValueOnce({
                 ok: true,
                 json: async () => mockResponse
             });
@@ -70,7 +70,7 @@ describe('chunkingService', () => {
                 }
             ];
 
-            global.fetch.mockResolvedValueOnce({
+            fetch.mockResolvedValueOnce({
                 ok: true,
                 json: async () => ({ response: JSON.stringify(mockKeywords) })
             });

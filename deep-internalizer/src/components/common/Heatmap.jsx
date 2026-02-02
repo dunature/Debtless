@@ -2,7 +2,7 @@
  * GitHub-style Heatmap Component
  * Visualizes daily progress: segments completed + words archived
  */
-import { useState, useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import styles from './Heatmap.module.css';
 
 // Generate last N days

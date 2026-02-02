@@ -7,15 +7,13 @@ import styles from './PWAPrompt.module.css';
 
 export default function PWAPrompt() {
     const [installPrompt, setInstallPrompt] = useState(null);
-    const [isInstalled, setIsInstalled] = useState(false);
+    const [isInstalled, setIsInstalled] = useState(() =>
+        window.matchMedia('(display-mode: standalone)').matches
+    );
     const [showPrompt, setShowPrompt] = useState(false);
 
     useEffect(() => {
-        // Check if already installed
-        if (window.matchMedia('(display-mode: standalone)').matches) {
-            setIsInstalled(true);
-            return;
-        }
+        if (isInstalled) return;
 
         // Listen for install prompt
         const handleBeforeInstall = (e) => {
@@ -37,7 +35,7 @@ export default function PWAPrompt() {
         return () => {
             window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
         };
-    }, []);
+    }, [isInstalled]);
 
     const handleInstall = async () => {
         if (!installPrompt) return;

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { chunkDocument, extractKeywords, generateNewContext, generateCoreThesis } from '../chunkingService';
+import { chunkDocument, extractKeywords, generateCoreThesis } from '../chunkingService';
 
 describe('chunkingService Abort Support', () => {
     beforeEach(() => {
@@ -14,14 +14,14 @@ describe('chunkingService Abort Support', () => {
             response: JSON.stringify([{ title: 'T', summary: 'S', startIndex: 0, endIndex: 1 }])
         };
 
-        global.fetch.mockResolvedValueOnce({
+        fetch.mockResolvedValueOnce({
             ok: true,
             json: async () => mockResponse
         });
 
         await chunkDocument(longText, undefined, signal);
 
-        expect(global.fetch).toHaveBeenCalledWith(
+        expect(fetch).toHaveBeenCalledWith(
             expect.any(String),
             expect.objectContaining({ signal })
         );
@@ -32,14 +32,14 @@ describe('chunkingService Abort Support', () => {
         const signal = controller.signal;
         const mockResponse = { response: JSON.stringify([]) };
 
-        global.fetch.mockResolvedValueOnce({
+        fetch.mockResolvedValueOnce({
             ok: true,
             json: async () => mockResponse
         });
 
         await extractKeywords('test text', undefined, signal);
 
-        expect(global.fetch).toHaveBeenCalledWith(
+        expect(fetch).toHaveBeenCalledWith(
             expect.any(String),
             expect.objectContaining({ signal })
         );
@@ -50,7 +50,7 @@ describe('chunkingService Abort Support', () => {
         const signal = controller.signal;
 
         // Mock fetch to reject with AbortError when signal is aborted
-        global.fetch.mockImplementationOnce(({ signal }) => {
+        fetch.mockImplementationOnce(({ signal }) => {
             return new Promise((_, reject) => {
                 if (signal.aborted) {
                     const error = new Error('The operation was aborted');

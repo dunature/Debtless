@@ -20,7 +20,7 @@ export default function SegmentLoop({
     onWordAction,
     onBack
 }) {
-    const [stepProgress, setStepProgress] = useState({});
+
 
     if (!chunk) {
         return (
@@ -37,7 +37,6 @@ export default function SegmentLoop({
             case 2:
                 return (
                     <Step2VocabularyBuild
-                        chunk={chunk}
                         words={words}
                         onWordAction={onWordAction}
                         onComplete={() => onStepComplete(2)}
@@ -117,7 +116,7 @@ function Step1MacroContext({ chunk, onComplete }) {
 /**
  * Step 2: Vocabulary Build - Key words with original context
  */
-function Step2VocabularyBuild({ chunk, words, onWordAction, onComplete }) {
+function Step2VocabularyBuild({ words, onWordAction, onComplete }) {
     const [currentWordIndex, setCurrentWordIndex] = useState(0);
     const [showPeek, setShowPeek] = useState(false);
 

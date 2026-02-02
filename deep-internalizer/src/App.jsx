@@ -38,20 +38,17 @@ const VIEW = {
 function App() {
   const {
     currentDocId,
-    isDebtCleared,
     pendingWordCount,
     emergencyAccessLeft,
     currentChunkIndex,
     currentStep,
     isLoading,
-    showLayer0,
     setLoading,
     setCurrentDocument,
     setCurrentChunk,
     setCurrentStep,
-    toggleLayer0,
     checkDebt,
-    useEmergencyAccess,
+    grantEmergencyAccess,
     restoreSession
   } = useAppStore();
 
@@ -103,7 +100,7 @@ function App() {
       }
     };
     init();
-  }, []);
+  }, [checkDebt, restoreSession]);
 
   // Load document with chunks
   const loadDocument = async (docId) => {
@@ -187,7 +184,7 @@ function App() {
 
   // Handle emergency access
   const handleEmergencyAccess = () => {
-    if (useEmergencyAccess()) {
+    if (grantEmergencyAccess()) {
       setCurrentView(document ? VIEW.LAYER0 : VIEW.EMPTY);
     }
   };

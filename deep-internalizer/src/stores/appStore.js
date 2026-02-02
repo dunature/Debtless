@@ -4,7 +4,7 @@
  */
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { db, getPendingWords, getLatestSession } from '../db/schema';
+import { getPendingWords, getLatestSession } from '../db/schema';
 
 export const useAppStore = create(
     persist(
@@ -54,7 +54,7 @@ export const useAppStore = create(
             },
 
             // Emergency access
-            useEmergencyAccess: () => {
+            grantEmergencyAccess: () => {
                 const { emergencyAccessLeft } = get();
                 if (emergencyAccessLeft > 0) {
                     set({
