@@ -95,40 +95,45 @@
 }
 
 /* Card B specific */
-.wordReveal {
+.definitionBox {
     margin-top: var(--space-6);
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-2);
+    padding: var(--space-4);
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: var(--radius-md);
+    width: 100%;
 }
 
-.blankWord {
-    font-size: var(--text-xl);
-    color: var(--color-accent-primary);
-    font-family: var(--font-mono);
+.definition {
+    font-size: var(--text-base);
+    color: var(--color-text-secondary);
+    line-height: 1.6;
 }
 
-.wordHint {
+.definitionZh {
     font-size: var(--text-sm);
     color: var(--color-text-muted);
+    margin-top: var(--space-2);
+    border-top: 1px solid var(--border-color);
+    padding-top: var(--space-2);
 }
 
 /* Card A specific */
-.wordInfo {
-    margin-top: var(--space-6);
+.originalInfo {
+    margin-bottom: var(--space-6);
     display: flex;
     flex-direction: column;
     gap: var(--space-1);
+    align-items: center;
 }
 
 .wordText {
-    font-size: var(--text-xl);
+    font-size: 2.5rem;
     font-weight: 700;
     color: var(--color-text-primary);
 }
 
 .phonetic {
-    font-size: var(--text-sm);
+    font-size: var(--text-lg);
     color: var(--color-accent-primary);
     font-family: var(--font-mono);
 }

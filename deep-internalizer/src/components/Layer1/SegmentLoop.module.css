@@ -149,64 +149,7 @@
     color: var(--color-text-secondary);
 }
 
-/* Step 2: Word Card */
-.wordCard {
-    background: var(--color-bg-secondary);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-xl);
-    padding: var(--space-8);
-    text-align: center;
-}
-
-.wordMain {
-    margin-bottom: var(--space-4);
-}
-
-.wordText {
-    display: block;
-    font-size: 2.5rem;
-    font-weight: 700;
-    color: var(--color-text-primary);
-    margin-bottom: var(--space-2);
-}
-
-.phonetic {
-    font-size: var(--text-lg);
-    color: var(--color-accent-primary);
-    font-family: var(--font-mono);
-}
-
-.definition {
-    font-size: var(--text-base);
-    color: var(--color-text-secondary);
-    line-height: 1.6;
-    margin-bottom: var(--space-6);
-}
-
-.peekButton {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-2);
-    padding: var(--space-3) var(--space-5);
-    background: var(--color-bg-elevated);
-    border: 1px dashed var(--border-color);
-    border-radius: var(--radius-md);
-    color: var(--color-text-muted);
-    font-size: var(--text-sm);
-    cursor: pointer;
-    transition: all var(--transition-fast);
-    user-select: none;
-}
-
-.peekButton:hover {
-    border-color: var(--color-accent-primary);
-    color: var(--color-text-secondary);
-}
-
-.peekButton:active {
-    background: rgba(99, 102, 241, 0.1);
-}
-
+/* Step 2: Transitioned to VocabularyCard component */
 .wordActions {
     display: flex;
     gap: var(--space-4);
@@ -281,22 +224,7 @@
     }
 }
 
-/* Step 3: Sentence Card */
-.sentenceCard {
-    background: var(--color-bg-secondary);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-xl);
-    padding: var(--space-8);
-    text-align: center;
-}
-
-.sentenceText {
-    font-size: var(--text-xl);
-    line-height: 1.8;
-    color: var(--color-text-primary);
-    margin-bottom: var(--space-6);
-}
-
+/* Step 3: Transitioned to SentenceCard component */
 .audioControls {
     display: flex;
     justify-content: center;
@@ -310,16 +238,6 @@
     gap: var(--space-2);
     padding: var(--space-2) var(--space-4);
     font-size: var(--text-sm);
-    border-radius: var(--radius-md);
-    opacity: 0.6;
-    cursor: not-allowed;
-}
-
-.tipText {
-    font-size: var(--text-sm);
-    color: var(--color-text-muted);
-    padding: var(--space-3);
-    background: var(--color-bg-elevated);
     border-radius: var(--radius-md);
 }
 

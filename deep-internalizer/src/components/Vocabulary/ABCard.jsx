@@ -129,10 +129,12 @@ export default function ABCard({
                     }}
                 >
                     <div className={styles.cardLabel}>New Context</div>
-                    <p className={styles.contextText}>{word.newContext || 'Loading new context...'}</p>
-                    <div className={styles.wordReveal}>
-                        <span className={styles.blankWord}>______</span>
-                        <span className={styles.wordHint}>{word.text}</span>
+                    <p className={styles.contextText}>
+                        <HighlightedText text={word.newContext || word.originalContext} highlight={word.text} />
+                    </p>
+                    <div className={styles.definitionBox}>
+                        <p className={styles.definition}>{word.definition}</p>
+                        {word.definition_zh && <p className={styles.definitionZh}>{word.definition_zh}</p>}
                     </div>
                 </div>
 
@@ -141,12 +143,16 @@ export default function ABCard({
                     className={`${styles.card} ${styles.cardA} ${showingCard === 'B' ? styles.hidden : ''}`}
                 >
                     <div className={styles.cardLabel}>Original Context</div>
+                    <div className={styles.originalInfo}>
+                        <span className={styles.wordText}>{word.text}</span>
+                        <span className={styles.phonetic}>{word.phonetic}</span>
+                    </div>
                     <p className={styles.contextText}>
                         <HighlightedText text={word.originalContext} highlight={word.text} />
                     </p>
-                    <div className={styles.wordInfo}>
-                        <span className={styles.wordText}>{word.text}</span>
-                        <span className={styles.phonetic}>{word.phonetic}</span>
+                    <div className={styles.definitionBox}>
+                        <p className={styles.definition}>{word.definition}</p>
+                        {word.definition_zh && <p className={styles.definitionZh}>{word.definition_zh}</p>}
                     </div>
                 </div>
             </div>

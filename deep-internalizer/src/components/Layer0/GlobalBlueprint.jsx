@@ -32,7 +32,6 @@ export default function GlobalBlueprint({
                 <h1 className={styles.title}>{document.title}</h1>
                 {document.coreThesis && (
                     <p className={styles.thesis}>
-                        <span className={styles.thesisLabel}>Core Thesis:</span>
                         {document.coreThesis}
                     </p>
                 )}

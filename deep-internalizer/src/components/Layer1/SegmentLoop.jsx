@@ -5,6 +5,8 @@
 import { useState, useEffect } from 'react';
 import styles from './SegmentLoop.module.css';
 import { useTTS } from '../../hooks/useTTS';
+import VocabularyCard from './VocabularyCard';
+import SentenceCard from './SentenceCard';
 
 const STEPS = [
     { id: 1, name: 'Macro Context', icon: '📖' },
@@ -117,6 +119,7 @@ function Step1MacroContext({ chunk, onComplete }) {
 /**
  * Step 2: Vocabulary Build - Key words with original context
  */
+
 /**
  * Step 2: Vocabulary Build - Key words with original context
  */
@@ -149,21 +152,9 @@ function Step2VocabularyBuild({ words, onWordAction, onComplete }) {
         handleNext();
     };
 
-    const handlePlayWord = (e) => {
-        e.stopPropagation();
-        if (currentWord) {
-            speak(currentWord.word);
-        }
-    };
-
-    // Long press handlers for Peek Origin
-    const handlePeekStart = () => {
-        setShowPeek(true);
-    };
-
-    const handlePeekEnd = () => {
-        setShowPeek(false);
-    };
+    // Peek Origin handlers
+    const handlePeekStart = () => setShowPeek(true);
+    const handlePeekEnd = () => setShowPeek(false);
 
     if (!hasWords) {
         return (
@@ -190,35 +181,14 @@ function Step2VocabularyBuild({ words, onWordAction, onComplete }) {
                 </p>
             </div>
 
-            {/* Word Card */}
-            <div className={styles.wordCard}>
-                <div className={styles.wordMain}>
-                    <span className={styles.wordText}>{currentWord.word}</span>
-                    <button
-                        className={`btn btn-ghost ${styles.wordAudioBtn}`}
-                        onClick={handlePlayWord}
-                        disabled={isLoading}
-                        title="Listen to pronunciation"
-                        style={{ marginLeft: '10px' }}
-                    >
-                        {isLoading && isPlaying ? '⏳' : '🔊'}
-                    </button>
-                    <span className={styles.phonetic}>{currentWord.phonetic}</span>
-                </div>
-                <p className={styles.definition}>{currentWord.definition}</p>
-
-                {/* Peek Origin Button */}
-                <button
-                    className={styles.peekButton}
-                    onMouseDown={handlePeekStart}
-                    onMouseUp={handlePeekEnd}
-                    onMouseLeave={handlePeekEnd}
-                    onTouchStart={handlePeekStart}
-                    onTouchEnd={handlePeekEnd}
-                >
-                    👁️ Hold to see original context
-                </button>
-            </div>
+            {/* Interactive Word Card Component */}
+            <VocabularyCard
+                word={currentWord}
+                speak={speak}
+                isTTSLoading={isLoading}
+                onPeekStart={handlePeekStart}
+                onPeekEnd={handlePeekEnd}
+            />
 
             {/* Action buttons */}
             <div className={styles.wordActions}>
@@ -309,31 +279,24 @@ function Step3Articulation({ chunk, onComplete }) {
                 </p>
             </div>
 
-            <div className={styles.sentenceCard}>
-                <p className={styles.sentenceText}>{currentSentence}</p>
+            {/* Thought Group Interactive Card */}
+            <SentenceCard
+                sentence={currentSentence}
+                speak={speak}
+                isPlaying={isPlaying}
+            />
 
-                <div className={styles.audioControls}>
-                    <button
-                        className={`btn ${isPlaying ? 'btn-secondary' : 'btn-ghost'} ${styles.audioBtn}`}
-                        onClick={handlePlay}
-                        disabled={isLoading}
-                        title={error ? `Error: ${error}` : "Listen to pronunciation"}
-                    >
-                        {isLoading ? '⏳ Loading...' : isPlaying ? '⏹️ Stop' : '🔊 Listen'}
-                    </button>
-                    {error && <span className={styles.errorText} style={{ color: 'red', fontSize: '12px', marginLeft: '10px' }}>⚠️ TTS Error</span>}
-
-                    <button className={`btn btn-ghost ${styles.audioBtn}`} title="Record (Coming soon)">
-                        🎙️ Record
-                    </button>
-                    <button className={`btn btn-ghost ${styles.audioBtn}`} title="Slow playback (Coming soon)">
-                        🐢 Slow
-                    </button>
-                </div>
-
-                <p className={styles.tipText}>
-                    💡 Tip: Read the sentence aloud 3 times, focusing on rhythm and stress patterns
-                </p>
+            <div className={styles.audioControls}>
+                <button
+                    className={`btn ${isPlaying ? 'btn-secondary' : 'btn-ghost'} ${styles.audioBtn}`}
+                    onClick={handlePlay}
+                    disabled={isLoading}
+                    title={error ? `Error: ${error}` : "Listen to full sentence"}
+                    style={{ opacity: 1, cursor: 'pointer' }}
+                >
+                    {isLoading ? '⏳' : isPlaying ? '⏹️ Stop Full' : '🔊 Full Sentence'}
+                </button>
+                {error && <span className={styles.errorText} style={{ color: 'red', fontSize: '12px', marginLeft: '10px' }}>⚠️ TTS Error</span>}
             </div>
 
             <button className="btn btn-primary btn-large" onClick={handleNext}>

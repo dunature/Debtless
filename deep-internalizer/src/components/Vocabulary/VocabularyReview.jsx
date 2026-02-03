@@ -20,11 +20,9 @@ export default function VocabularyReview({
     const isComplete = currentIndex >= words.length;
     const remaining = words.length - currentIndex;
 
-    useEffect(() => {
-        if (isComplete) {
-            onComplete?.(stats);
-        }
-    }, [isComplete, stats, onComplete]);
+    const handleSessionComplete = () => {
+        onComplete?.(stats);
+    };
 
     const handleKeep = (word) => {
         onKeep(word);
@@ -47,7 +45,7 @@ export default function VocabularyReview({
                     <span className={styles.emptyIcon}>✨</span>
                     <h2>All Clear!</h2>
                     <p>No words pending review</p>
-                    <button className="btn btn-primary" onClick={onBack}>
+                    <button className="btn btn-primary" onClick={handleSessionComplete}>
                         Continue Reading
                     </button>
                 </div>
@@ -71,7 +69,7 @@ export default function VocabularyReview({
                             <span className={styles.statLabel}>To Review Again</span>
                         </div>
                     </div>
-                    <button className="btn btn-primary btn-large" onClick={onBack}>
+                    <button className="btn btn-primary btn-large" onClick={handleSessionComplete}>
                         Continue Reading
                     </button>
                 </div>

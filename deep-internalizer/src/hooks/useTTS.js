@@ -16,18 +16,22 @@ export function useTTS() {
         };
     }, []);
 
-    const speak = useCallback(async (text) => {
+    const speak = useCallback(async (text, options = {}) => {
         if (!text) return;
+        const { speed = 1.0, voice = 'default' } = options;
 
         try {
             setIsLoading(true);
             setError(null);
 
             // Generate audio URL
-            const audioUrl = await ttsService.generateAudio(text);
+            const audioUrl = await ttsService.generateAudio(text, voice);
 
             const audio = audioRef.current;
             audio.src = audioUrl;
+
+            // Apply playback speed
+            audio.playbackRate = speed;
 
             // Setup listeners
             audio.onplay = () => setIsPlaying(true);

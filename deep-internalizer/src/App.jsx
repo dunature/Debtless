@@ -85,7 +85,8 @@ function App() {
           phonetic: w.phonetic,
           definition: w.definition,
           originalContext: w.originalContext,
-          newContext: w.newContext
+          newContext: w.newContext,
+          slices: w.slices || []
         })));
         setCurrentView(VIEW.INTERCEPTION);
         return;
@@ -177,8 +178,21 @@ function App() {
   };
 
   // Handle clearing debt (vocabulary review)
-  const handleClearDebt = () => {
+  const handleClearDebt = async () => {
     cancelPendingOperations();
+
+    // Refresh pending words before entering review
+    const words = await getPendingWords();
+    setPendingWords(words.map(w => ({
+      id: w.id,
+      text: w.text,
+      phonetic: w.phonetic,
+      definition: w.definition,
+      originalContext: w.originalContext,
+      newContext: w.newContext,
+      slices: w.slices || []
+    })));
+
     setCurrentView(VIEW.REVIEW);
   };
 
@@ -320,7 +334,9 @@ function App() {
         word.word,
         word.phonetic,
         word.definition,
-        word.sentence
+        word.sentence,
+        word.newContext,
+        word.slices
       );
 
       // Update debt count
@@ -341,10 +357,10 @@ function App() {
   };
 
   const handleReviewComplete = async () => {
-    const count = await checkDebt();
-    if (count === 0) {
-      setCurrentView(document ? VIEW.LAYER0 : VIEW.EMPTY);
-    }
+    await checkDebt();
+    // After a review session, allow users to return to their previously active view
+    // (either the Map or the Empty state)
+    setCurrentView(document ? VIEW.LAYER0 : VIEW.EMPTY);
   };
 
   // Render based on current view

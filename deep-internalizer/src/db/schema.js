@@ -11,19 +11,19 @@ export const db = new Dexie('DeepInternalizer');
 db.version(1).stores({
   // Documents: imported articles/texts
   documents: 'id, title, importedAt, lastAccessedAt',
-  
+
   // Chunks: semantic segments of documents
   chunks: 'id, docId, index, completed',
-  
+
   // Words: vocabulary items extracted from chunks
   words: 'id, chunkId, text, status, addedAt',
-  
+
   // Review records: history of word reviews
   reviewRecords: 'id, wordId, action, reviewedAt',
-  
+
   // Reading sessions: state persistence for resume
   readingSessions: 'docId',
-  
+
   // User stats: daily progress for heatmap
   userStats: 'date'
 });
@@ -44,7 +44,7 @@ export const ReviewAction = {
 export async function createDocument(title, rawContent, coreThesis = '') {
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
-  
+
   await db.documents.add({
     id,
     title,
@@ -53,13 +53,13 @@ export async function createDocument(title, rawContent, coreThesis = '') {
     importedAt: now,
     lastAccessedAt: now
   });
-  
+
   return id;
 }
 
 export async function createChunk(docId, index, title, summary, originalText) {
   const id = crypto.randomUUID();
-  
+
   await db.chunks.add({
     id,
     docId,
@@ -71,14 +71,14 @@ export async function createChunk(docId, index, title, summary, originalText) {
     totalSteps: 4,
     completed: false
   });
-  
+
   return id;
 }
 
-export async function createWord(chunkId, text, phonetic, definition, originalContext) {
+export async function createWord(chunkId, text, phonetic, definition, originalContext, newContext = '', slices = []) {
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
-  
+
   await db.words.add({
     id,
     chunkId,
@@ -86,11 +86,12 @@ export async function createWord(chunkId, text, phonetic, definition, originalCo
     phonetic,
     definition,
     originalContext,
-    newContext: '', // Will be filled by AI
+    newContext,
+    slices,
     status: WordStatus.PENDING,
     addedAt: now
   });
-  
+
   return id;
 }
 
@@ -104,12 +105,12 @@ export async function getPendingWords() {
 export async function getDocumentWithChunks(docId) {
   const doc = await db.documents.get(docId);
   if (!doc) return null;
-  
+
   const chunks = await db.chunks
     .where('docId')
     .equals(docId)
     .sortBy('index');
-  
+
   return { ...doc, chunks };
 }
 
@@ -124,8 +125,8 @@ export async function saveReadingSession(session) {
 export async function getLatestSession() {
   const sessions = await db.readingSessions.toArray();
   if (sessions.length === 0) return null;
-  
-  return sessions.sort((a, b) => 
+
+  return sessions.sort((a, b) =>
     new Date(b.updatedAt) - new Date(a.updatedAt)
   )[0];
 }

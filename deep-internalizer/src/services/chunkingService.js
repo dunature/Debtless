@@ -37,8 +37,12 @@ Extract 5-8 key vocabulary words from this paragraph.
 
 For each word provide:
 - word: the word itself
-- phonetic: IPA transcription
-- definition: brief definition in context (20 words max)
+- phonetic: IPA transcription (use full word transcription)
+- slices: split the word into logical syllable blocks. For each block:
+    - text: the character slice of the word
+    - phonetic: the IPA transcription for JUST that slice
+- definition: brief definition in English (20 words max)
+- definition_zh: brief definition in Chinese (7 words max)
 - sentence: the EXACT full sentence from the text containing this word
 
 Output ONLY valid JSON array:
@@ -46,7 +50,13 @@ Output ONLY valid JSON array:
   {
     "word": "aggregate",
     "phonetic": "/ˈæɡrɪɡeɪt/",
+    "slices": [
+      {"text": "ag", "phonetic": "ˈæɡ"},
+      {"text": "gre", "phonetic": "rɪ"},
+      {"text": "gate", "phonetic": "ɡeɪt"}
+    ],
     "definition": "to collect or gather into a whole",
+    "definition_zh": "集合；合计",
     "sentence": "The system will aggregate all user inputs before processing."
   }
 ]
@@ -210,6 +220,42 @@ Output ONLY the sentence, nothing else.`;
 
     const response = await callOllama(prompt, model, signal);
     return response.trim().replace(/^["']|["']$/g, '');
+}
+
+const THOUGHT_GROUP_PROMPT = `You are a linguistic expert specializing in English prosody and syntax.
+Your task is to divide a given sentence into "Thought Groups" (semantic chunks) to help learners with phrasing and rhythm.
+
+Rules:
+- Divide based on natural pauses, grammatical boundaries, and meaningful units.
+- Each group should be 2-5 words.
+- Provide a brief "focus hint" for each group (e.g., "subject", "action", "detail").
+
+Output ONLY valid JSON array:
+[
+  {
+    "text": "The rapid advancement",
+    "hint": "subject"
+  },
+  {
+    "text": "of artificial intelligence",
+    "hint": "modifier"
+  }
+]`;
+
+/**
+ * Split a sentence into semantic thought groups
+ * @param {string} sentence - The sentence to split
+ * @param {string} model - The model to use
+ * @param {AbortSignal} signal - Optional AbortSignal for cancellation
+ */
+export async function splitSentenceIntoGroups(sentence, model = DEFAULT_MODEL, signal = null) {
+    const prompt = `${THOUGHT_GROUP_PROMPT}
+
+Sentence:
+${sentence}`;
+
+    const response = await callOllama(prompt, model, signal);
+    return parseJsonResponse(response);
 }
 
 /**
