@@ -56,6 +56,8 @@ function App() {
   const [chunkWords, setChunkWords] = useState([]);
   const [pendingWords, setPendingWords] = useState([]);
   const [showImport, setShowImport] = useState(false);
+  const [processingLogs, setProcessingLogs] = useState([]);
+  const [processingStep, setProcessingStep] = useState('');
   const [currentView, setCurrentView] = useState(VIEW.EMPTY);
 
   // Async operation guard: prevents stale callbacks from updating state
@@ -70,6 +72,20 @@ function App() {
       abortControllerRef.current = null;
     }
     asyncOperationIdRef.current++;
+  };
+
+  const addLog = (message, type = 'active') => {
+    setProcessingLogs(prev => {
+      // Mark previous active log as done
+      const updated = prev.map(log =>
+        log.type === 'active' ? { ...log, type: 'done' } : log
+      );
+      return [...updated, {
+        message,
+        timestamp: new Date().toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+        type
+      }];
+    });
   };
 
   // Check debt and restore session on mount
@@ -127,25 +143,42 @@ function App() {
     const operationId = ++asyncOperationIdRef.current;
 
     setLoading(true);
+    setProcessingLogs([]);
+    setProcessingStep('INITIALIZING');
+    addLog('Initializing import sequence...', 'active');
+
     try {
       // Generate core thesis
+      setProcessingStep('SYNTHESIS');
+      addLog('Synthesizing Core Thesis from raw text...');
       const coreThesis = await generateCoreThesis(content, undefined, signal);
 
       if (operationId !== asyncOperationIdRef.current) return;
 
+      addLog('thesis generated: ' + coreThesis.substring(0, 30) + '...', 'done');
+
       // Create document
+      setProcessingStep('PERSISTENCE');
+      addLog('Creating document structure...');
       const docId = await createDocument(title, content, coreThesis);
 
       if (operationId !== asyncOperationIdRef.current) return;
 
       // Chunk the document
+      setProcessingStep('CHUNKING');
+      addLog('Deconstructing into semantic shards...');
       const semanticChunks = await chunkDocument(content, undefined, signal);
 
       if (operationId !== asyncOperationIdRef.current) return;
+      addLog(`Created ${semanticChunks.length} semantic chunks`, 'done');
 
       // Save chunks
+      setProcessingStep('SAVING');
+      addLog('Anchoring knowledge points to local database...');
       for (let i = 0; i < semanticChunks.length; i++) {
         const chunk = semanticChunks[i];
+        if (i % 2 === 0) addLog(`Processing chunk ${i + 1}/${semanticChunks.length}...`);
+
         await createChunk(
           docId,
           i,
@@ -157,6 +190,8 @@ function App() {
       }
 
       if (operationId !== asyncOperationIdRef.current) return;
+      addLog('All chunks anchored successfully', 'done');
+      setProcessingStep('COMPLETE');
 
       // Load the new document
       await loadDocument(docId);
@@ -411,6 +446,8 @@ function App() {
             onClose={() => setShowImport(false)}
             onImport={handleImport}
             isLoading={isLoading}
+            processingLogs={processingLogs}
+            processingStep={processingStep}
           />
         </div>
       );
@@ -510,6 +547,8 @@ function App() {
             onClose={() => setShowImport(false)}
             onImport={handleImport}
             isLoading={isLoading}
+            processingLogs={processingLogs}
+            processingStep={processingStep}
           />
           <PWAPrompt />
           <OfflineIndicator />

@@ -248,3 +248,23 @@
     justify-content: flex-end;
     margin-top: var(--space-6);
 }
+
+.thinkingContainer {
+    width: 100%;
+    min-height: 400px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.5s ease-out;
+    padding: var(--space-6);
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}

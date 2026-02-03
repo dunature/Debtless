@@ -4,9 +4,10 @@
  */
 import { useState, useRef } from 'react';
 import { parseFile } from '../../utils/fileParser';
+import ThinkingProcess from './ThinkingProcess';
 import styles from './ImportModal.module.css';
 
-export default function ImportModal({ isOpen, onClose, onImport, isLoading }) {
+export default function ImportModal({ isOpen, onClose, onImport, isLoading, processingLogs, processingStep }) {
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
     const [error, setError] = useState('');
@@ -140,6 +141,13 @@ export default function ImportModal({ isOpen, onClose, onImport, isLoading }) {
                     </button>
                 </header>
 
+            </header>
+
+            {isLoading ? (
+                <div className={styles.thinkingContainer}>
+                    <ThinkingProcess logs={processingLogs} currentStep={processingStep} />
+                </div>
+            ) : (
                 <form onSubmit={handleSubmit} className={styles.form}>
                     <div className={styles.field}>
                         <label>Document Source</label>
@@ -260,7 +268,8 @@ export default function ImportModal({ isOpen, onClose, onImport, isLoading }) {
                         </button>
                     </div>
                 </form>
-            </div>
+            )}
         </div>
+        </div >
     );
 }
