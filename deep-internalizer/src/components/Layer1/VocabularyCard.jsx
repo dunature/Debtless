@@ -14,6 +14,7 @@ export default function VocabularyCard({
 }) {
     const [isSplit, setIsSplit] = useState(false);
     const [activeSyllable, setActiveSyllable] = useState(null);
+    const [isZhVisible, setIsZhVisible] = useState(false);
 
     const toggleSplit = (e) => {
         e.stopPropagation();
@@ -56,7 +57,10 @@ export default function VocabularyCard({
                     </div>
                 ) : (
                     <div className={styles.wordTitleRow}>
-                        <span className={styles.wordText}>{word.word}</span>
+                        <div className={styles.wordHeader}>
+                            <span className={styles.wordText}>{word.word}</span>
+                            {word.pos && <span className={styles.pos}>{word.pos}</span>}
+                        </div>
                         <div className={styles.wordMeta}>
                             <button
                                 className={`btn btn-ghost ${styles.wordAudioBtn}`}
@@ -73,6 +77,21 @@ export default function VocabularyCard({
             </div>
 
             <p className={styles.definition}>{word.definition}</p>
+
+            {word.definition_zh && (
+                <div className={styles.zhContainer}>
+                    {isZhVisible ? (
+                        <p className={styles.definitionZh}>{word.definition_zh}</p>
+                    ) : (
+                        <button
+                            className={styles.revealBtn}
+                            onClick={() => setIsZhVisible(true)}
+                        >
+                            中
+                        </button>
+                    )}
+                </div>
+            )}
 
             {/* Peek Origin Button */}
             <button

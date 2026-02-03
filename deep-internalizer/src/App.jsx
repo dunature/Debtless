@@ -20,8 +20,7 @@ import {
 import {
   chunkDocument,
   generateCoreThesis,
-  extractKeywords,
-  generateNewContext
+  extractKeywords
 } from './services/chunkingService';
 import './App.css';
 
@@ -83,7 +82,9 @@ function App() {
           id: w.id,
           text: w.text,
           phonetic: w.phonetic,
+          pos: w.pos,
           definition: w.definition,
+          definition_zh: w.definition_zh,
           originalContext: w.originalContext,
           newContext: w.newContext,
           slices: w.slices || []
@@ -150,7 +151,8 @@ function App() {
           i,
           chunk.title,
           chunk.summary,
-          chunk.originalText
+          chunk.originalText,
+          chunk.summary_zh
         );
       }
 
@@ -187,7 +189,9 @@ function App() {
       id: w.id,
       text: w.text,
       phonetic: w.phonetic,
+      pos: w.pos,
       definition: w.definition,
+      definition_zh: w.definition_zh,
       originalContext: w.originalContext,
       newContext: w.newContext,
       slices: w.slices || []
@@ -226,7 +230,8 @@ function App() {
 
     try {
       // Extract keywords for this chunk (with cancellation support)
-      const keywords = await extractKeywords(chunk.originalText, undefined, signal);
+      // Now returns keywords WITH newContext already populated by the consolidated prompt
+      const wordsWithContext = await extractKeywords(chunk.originalText, undefined, signal);
 
       // Check if this operation is still valid (user hasn't navigated away)
       if (operationId !== asyncOperationIdRef.current) {
@@ -234,13 +239,8 @@ function App() {
         return;
       }
 
-      // Generate new contexts for each word (with cancellation support)
-      const wordsWithContext = await Promise.all(
-        keywords.map(async (kw) => {
-          const newContext = await generateNewContext(kw.word, kw.definition, undefined, signal);
-          return { ...kw, newContext };
-        })
-      );
+      // No need for separate context generation anymore
+
 
       // Final validity check before committing to view change
       if (operationId !== asyncOperationIdRef.current) {
@@ -336,7 +336,9 @@ function App() {
         word.definition,
         word.sentence,
         word.newContext,
-        word.slices
+        word.slices,
+        word.pos,
+        word.definition_zh
       );
 
       // Update debt count

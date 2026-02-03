@@ -56,11 +56,24 @@
     gap: var(--space-1);
 }
 
+.wordHeader {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+}
+
 .wordText {
     font-size: 3rem;
     font-weight: 700;
     color: var(--color-text-primary);
     letter-spacing: -0.02em;
+}
+
+.pos {
+    font-size: 1rem;
+    color: var(--color-text-muted);
+    font-style: italic;
+    font-family: var(--font-mono);
 }
 
 .wordMeta {
@@ -132,8 +145,45 @@
     font-size: var(--text-base);
     color: var(--color-text-secondary);
     line-height: 1.6;
-    margin-bottom: var(--space-6);
+    margin-bottom: var(--space-4);
     max-width: 80%;
+}
+
+.zhContainer {
+    margin-bottom: var(--space-6);
+    min-height: 24px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.revealBtn {
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--border-color);
+    color: var(--color-text-muted);
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    font-size: 0.75rem;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: all var(--transition-fast);
+}
+
+.revealBtn:hover {
+    border-color: var(--color-accent-primary);
+    color: var(--color-accent-primary);
+    transform: scale(1.1);
+}
+
+.definitionZh {
+    font-size: var(--text-lg);
+    color: var(--color-accent-primary);
+    font-weight: 500;
+    margin: 0;
+    animation: fadeIn 0.3s ease-out;
 }
 
 .peekButton {

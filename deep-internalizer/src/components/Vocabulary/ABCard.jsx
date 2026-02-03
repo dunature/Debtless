@@ -16,6 +16,7 @@ export default function ABCard({
     onNext
 }) {
     const [showingCard, setShowingCard] = useState('B'); // 'A' or 'B'
+    const [isZhVisible, setIsZhVisible] = useState(false);
     const [offset, setOffset] = useState(0);
     const [isDragging, setIsDragging] = useState(false);
     const startXRef = useRef(0);
@@ -80,12 +81,14 @@ export default function ABCard({
     }, [isDragging, offset, showingCard]);
 
     const handleKeep = () => {
+        setIsZhVisible(false);
         onKeep(word);
         setShowingCard('B');
         onNext?.();
     };
 
     const handleArchive = () => {
+        setIsZhVisible(false);
         onArchive(word);
         setShowingCard('B');
         onNext?.();
@@ -134,7 +137,20 @@ export default function ABCard({
                     </p>
                     <div className={styles.definitionBox}>
                         <p className={styles.definition}>{word.definition}</p>
-                        {word.definition_zh && <p className={styles.definitionZh}>{word.definition_zh}</p>}
+                        {word.definition_zh && (
+                            <div className={styles.zhContainer}>
+                                {isZhVisible ? (
+                                    <p className={styles.definitionZh}>{word.definition_zh}</p>
+                                ) : (
+                                    <button
+                                        className={styles.revealBtn}
+                                        onClick={() => setIsZhVisible(true)}
+                                    >
+                                        中
+                                    </button>
+                                )}
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -144,7 +160,10 @@ export default function ABCard({
                 >
                     <div className={styles.cardLabel}>Original Context</div>
                     <div className={styles.originalInfo}>
-                        <span className={styles.wordText}>{word.text}</span>
+                        <div className={styles.wordHeader}>
+                            <span className={styles.wordText}>{word.text}</span>
+                            {word.pos && <span className={styles.pos}>{word.pos}</span>}
+                        </div>
                         <span className={styles.phonetic}>{word.phonetic}</span>
                     </div>
                     <p className={styles.contextText}>
@@ -152,7 +171,20 @@ export default function ABCard({
                     </p>
                     <div className={styles.definitionBox}>
                         <p className={styles.definition}>{word.definition}</p>
-                        {word.definition_zh && <p className={styles.definitionZh}>{word.definition_zh}</p>}
+                        {word.definition_zh && (
+                            <div className={styles.zhContainer}>
+                                {isZhVisible ? (
+                                    <p className={styles.definitionZh}>{word.definition_zh}</p>
+                                ) : (
+                                    <button
+                                        className={styles.revealBtn}
+                                        onClick={() => setIsZhVisible(true)}
+                                    >
+                                        中
+                                    </button>
+                                )}
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

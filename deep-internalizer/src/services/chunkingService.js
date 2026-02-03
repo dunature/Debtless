@@ -13,13 +13,15 @@ Your task is to divide the given text into logical thematic chunks for deep read
 For each chunk, provide:
 1. A short title (3-5 words, captures the main idea)
 2. A 2-sentence summary in English
-3. The exact start and end sentence indices (0-indexed)
+3. A 1-sentence summary in Chinese (summary_zh)
+4. The exact start and end sentence indices (0-indexed)
 
 Output ONLY valid JSON array, no other text:
 [
   {
     "title": "The Problem Statement",
     "summary": "The author introduces the core challenge. They argue that current approaches fall short.",
+    "summary_zh": "作者介绍了核心挑战，并认为现有方法存在不足。",
     "startIndex": 0,
     "endIndex": 4
   }
@@ -38,18 +40,21 @@ Extract 5-8 key vocabulary words from this paragraph.
 For each word provide:
 - word: the word itself
 - phonetic: IPA transcription (use full word transcription)
+- pos: part of speech (e.g., n., v., adj., adv., phr.)
 - slices: split the word into logical syllable blocks. For each block:
     - text: the character slice of the word
     - phonetic: the IPA transcription for JUST that slice
 - definition: brief definition in English (20 words max)
 - definition_zh: brief definition in Chinese (7 words max)
 - sentence: the EXACT full sentence from the text containing this word
+- newContext: a NEW example sentence using the word (different from the original sentence), preferably from a real-world context.
 
 Output ONLY valid JSON array:
 [
   {
     "word": "aggregate",
     "phonetic": "/ˈæɡrɪɡeɪt/",
+    "pos": "v.",
     "slices": [
       {"text": "ag", "phonetic": "ˈæɡ"},
       {"text": "gre", "phonetic": "rɪ"},
@@ -57,7 +62,8 @@ Output ONLY valid JSON array:
     ],
     "definition": "to collect or gather into a whole",
     "definition_zh": "集合；合计",
-    "sentence": "The system will aggregate all user inputs before processing."
+    "sentence": "The system will aggregate all user inputs before processing.",
+    "newContext": "We need to aggregate the data from multiple sources to get a clear picture."
   }
 ]
 
@@ -206,21 +212,9 @@ ${chunkText}`;
     return parseJsonResponse(response);
 }
 
-/**
- * Generate a new context sentence for a word (for Card B)
- * @param {string} word - The word to generate context for
- * @param {string} definition - The word's definition
- * @param {string} model - The model to use
- * @param {AbortSignal} signal - Optional AbortSignal for cancellation
- */
-export async function generateNewContext(word, definition, model = DEFAULT_MODEL, signal = null) {
-    const prompt = `Generate ONE new example sentence using the word "${word}" (meaning: ${definition}).
-The sentence should be different from typical textbook examples, preferably from a real-world context.
-Output ONLY the sentence, nothing else.`;
-
-    const response = await callOllama(prompt, model, signal);
-    return response.trim().replace(/^["']|["']$/g, '');
-}
+// generateNewContext is deprecated as it's now merged into extractKeywords for performance
+// Kept commented out for reference or fallback if needed
+// export async function generateNewContext(word, definition, model = DEFAULT_MODEL, signal = null) { ... }
 
 const THOUGHT_GROUP_PROMPT = `You are a linguistic expert specializing in English prosody and syntax.
 Your task is to divide a given sentence into "Thought Groups" (semantic chunks) to help learners with phrasing and rhythm.
@@ -279,6 +273,5 @@ ${text.substring(0, 2000)}`; // Limit input length
 export default {
     chunkDocument,
     extractKeywords,
-    generateNewContext,
     generateCoreThesis
 };

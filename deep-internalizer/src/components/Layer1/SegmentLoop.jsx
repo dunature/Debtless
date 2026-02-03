@@ -23,6 +23,7 @@ export default function SegmentLoop({
     onWordAction,
     onBack
 }) {
+    const [isBilingual, setIsBilingual] = useState(false);
 
 
     if (!chunk) {
@@ -36,7 +37,7 @@ export default function SegmentLoop({
     const renderStepContent = () => {
         switch (currentStep) {
             case 1:
-                return <Step1MacroContext chunk={chunk} onComplete={() => onStepComplete(1)} />;
+                return <Step1MacroContext chunk={chunk} isBilingual={isBilingual} onComplete={() => onStepComplete(1)} />;
             case 2:
                 return (
                     <Step2VocabularyBuild
@@ -75,6 +76,13 @@ export default function SegmentLoop({
                     ← Back to Map
                 </button>
                 <h2 className={styles.chunkTitle}>{chunk.title}</h2>
+                <button
+                    className={`${styles.bilingualBtn} ${isBilingual ? styles.active : ''}`}
+                    onClick={() => setIsBilingual(!isBilingual)}
+                    title={isBilingual ? "Hide Chinese" : "Show Chinese"}
+                >
+                    中/EN
+                </button>
             </header>
 
             {/* Step content */}
@@ -99,6 +107,9 @@ function Step1MacroContext({ chunk, onComplete }) {
 
             <div className={styles.summaryCard}>
                 <p className={styles.summary}>{chunk.summary}</p>
+                {isBilingual && chunk.summary_zh && (
+                    <p className={styles.summaryZh}>{chunk.summary_zh}</p>
+                )}
             </div>
 
             <div className={styles.originalPreview}>

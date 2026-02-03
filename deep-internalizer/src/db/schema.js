@@ -8,7 +8,7 @@ import Dexie from 'dexie';
 export const db = new Dexie('DeepInternalizer');
 
 // Define schema
-db.version(1).stores({
+db.version(2).stores({
   // Documents: imported articles/texts
   documents: 'id, title, importedAt, lastAccessedAt',
 
@@ -57,7 +57,7 @@ export async function createDocument(title, rawContent, coreThesis = '') {
   return id;
 }
 
-export async function createChunk(docId, index, title, summary, originalText) {
+export async function createChunk(docId, index, title, summary, originalText, summary_zh = '') {
   const id = crypto.randomUUID();
 
   await db.chunks.add({
@@ -66,6 +66,7 @@ export async function createChunk(docId, index, title, summary, originalText) {
     index,
     title,
     summary,
+    summary_zh,
     originalText,
     currentStep: 1,
     totalSteps: 4,
@@ -75,7 +76,7 @@ export async function createChunk(docId, index, title, summary, originalText) {
   return id;
 }
 
-export async function createWord(chunkId, text, phonetic, definition, originalContext, newContext = '', slices = []) {
+export async function createWord(chunkId, text, phonetic, definition, originalContext, newContext = '', slices = [], pos = '', definition_zh = '') {
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
 
@@ -84,7 +85,9 @@ export async function createWord(chunkId, text, phonetic, definition, originalCo
     chunkId,
     text,
     phonetic,
+    pos,
     definition,
+    definition_zh,
     originalContext,
     newContext,
     slices,
