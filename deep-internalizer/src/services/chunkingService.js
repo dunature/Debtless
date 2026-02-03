@@ -293,8 +293,32 @@ ${text.substring(0, 2000)}`; // Limit input length
     return response.trim();
 }
 
+/**
+ * Translate an array of sentences
+ * @param {string[]} sentences - The sentences to translate
+ * @param {string} model - The model to use
+ * @param {AbortSignal} signal - Optional AbortSignal for cancellation
+ */
+export async function translateSentences(sentences, model = DEFAULT_MODEL, signal = null) {
+    if (!sentences || sentences.length === 0) return [];
+
+    const prompt = `You are a professional translator.
+Translate the following English sentences into natural, accurate Chinese.
+Return ONLY a JSON array of strings, in the same order as the input.
+
+Sentences:
+${JSON.stringify(sentences)}
+
+Output Format:
+["翻译1", "翻译2", ...]`;
+
+    const response = await callOllama(prompt, model, signal);
+    return parseJsonResponse(response);
+}
+
 export default {
     chunkDocument,
     extractKeywords,
+    translateSentences,
     generateCoreThesis
 };

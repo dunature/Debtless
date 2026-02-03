@@ -2,13 +2,13 @@
     background: var(--color-bg-secondary);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-xl);
-    padding: var(--space-10);
+    padding: var(--space-8);
     position: relative;
-    /* transition: all var(--transition-base); */
     display: flex;
     flex-direction: column;
-    min-height: 380px;
-    justify-content: center;
+    min-height: 420px;
+    justify-content: flex-start;
+    overflow-y: auto;
 }
 
 .sentenceCard:hover {
@@ -47,8 +47,9 @@
     flex: 1;
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    justify-content: flex-start;
     align-items: center;
+    padding-top: var(--space-4);
 }
 
 .fullSentenceView {
@@ -57,7 +58,7 @@
 }
 
 .sentenceText {
-    font-size: 2rem;
+    font-size: var(--text-xl);
     display: flex;
     justify-content: flex-start;
     align-items: center;
@@ -95,7 +96,7 @@
     width: 32px;
     height: 32px;
     border-radius: 50%;
-    font-size: 0.875rem;
+    font-size: var(--text-xs);
     cursor: pointer;
     display: flex;
     justify-content: center;
@@ -110,7 +111,7 @@
 }
 
 .translationZh {
-    font-size: 1.25rem;
+    font-size: var(--text-lg);
     color: var(--color-accent-primary);
     font-weight: 500;
     margin: 0;

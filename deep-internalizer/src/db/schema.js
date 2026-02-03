@@ -35,7 +35,10 @@ db.version(3).stores({
   syllableAudio: 'syllable, createdAt',
 
   // LLM response cache for keywords
-  chunkKeywords: 'chunkId'
+  chunkKeywords: 'chunkId',
+
+  // Sentence translations cache
+  sentenceTranslations: 'chunkId'
 });
 
 // Enums

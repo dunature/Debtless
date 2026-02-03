@@ -3,13 +3,14 @@
  * Manages in-flight prefetch requests with AbortController support
  */
 import { db } from '../db/schema';
-import { extractKeywords } from './chunkingService';
+import { extractKeywords, translateSentences } from './chunkingService';
 import { ttsService } from './ttsService';
 
 class PrefetchService {
     constructor() {
         // Track pending prefetch operations
         this.pendingKeywords = new Map(); // chunkId -> { promise, abort }
+        this.pendingTranslations = new Map(); // chunkId -> { promise, abort }
     }
 
     /**
@@ -63,6 +64,55 @@ class PrefetchService {
     }
 
     /**
+     * Start translation prefetch for a chunk
+     */
+    async prefetchTranslations(chunkId, sentences, signal = null) {
+        if (!sentences || sentences.length === 0) return [];
+
+        // 1. Check if already cached in DB
+        const cached = await db.sentenceTranslations.get(chunkId);
+        if (cached) {
+            console.log(`[Prefetch] Translations cache hit: ${chunkId}`);
+            return cached.translations;
+        }
+
+        // 2. Check if already prefetching
+        if (this.pendingTranslations.has(chunkId)) {
+            return this.pendingTranslations.get(chunkId).promise;
+        }
+
+        // 3. Start new prefetch
+        const controller = new AbortController();
+        const combinedSignal = signal
+            ? this._combineSignals(signal, controller.signal)
+            : controller.signal;
+
+        const promise = this._fetchAndCacheTranslations(chunkId, sentences, combinedSignal);
+
+        this.pendingTranslations.set(chunkId, {
+            promise,
+            abort: () => controller.abort()
+        });
+
+        try {
+            return await promise;
+        } finally {
+            this.pendingTranslations.delete(chunkId);
+        }
+    }
+
+    async _fetchAndCacheTranslations(chunkId, sentences, signal) {
+        console.log(`[Prefetch] Fetching translations: ${chunkId}`);
+        const translations = await translateSentences(sentences, undefined, signal);
+
+        // Cache in DB
+        await db.sentenceTranslations.put({ chunkId, translations });
+        console.log(`[Prefetch] Cached ${translations.length} translations for: ${chunkId}`);
+
+        return translations;
+    }
+
+    /**
      * Prefetch TTS for all words in a chunk (non-blocking)
      */
     prefetchTTSForWords(words) {
@@ -91,9 +141,12 @@ class PrefetchService {
     cancelAll() {
         for (const [chunkId, pending] of this.pendingKeywords) {
             pending.abort();
-            console.log(`[Prefetch] Cancelled: ${chunkId}`);
+        }
+        for (const [chunkId, pending] of this.pendingTranslations) {
+            pending.abort();
         }
         this.pendingKeywords.clear();
+        this.pendingTranslations.clear();
     }
 
     /**

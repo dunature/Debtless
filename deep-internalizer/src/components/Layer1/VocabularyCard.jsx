@@ -46,9 +46,10 @@ export default function VocabularyCard({
     const [isFlipped, setIsFlipped] = useState(false);
 
     // Reset flip state when word changes
-    if (word !== word) {
+    useEffect(() => {
         setIsFlipped(false);
-    }
+        setIsSplit(false);
+    }, [word]);
 
     const handleCardClick = () => {
         if (!isSplit) {
@@ -107,13 +108,31 @@ export default function VocabularyCard({
                     </div>
 
                     {/* Peek Button on Front */}
+                    {/* Peek Button on Front */}
                     <button
                         className={styles.peekButtonFront}
-                        onMouseDown={(e) => { e.stopPropagation(); handlePeekStart(e); }}
-                        onMouseUp={(e) => { e.stopPropagation(); onPeekEnd(e); }}
-                        onMouseLeave={(e) => { e.stopPropagation(); onPeekEnd(e); }}
-                        onTouchStart={(e) => { e.stopPropagation(); handlePeekStart(e); }}
-                        onTouchEnd={(e) => { e.stopPropagation(); onPeekEnd(e); }}
+                        onMouseDown={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            onPeekStart(e);
+                        }}
+                        onMouseUp={(e) => {
+                            e.stopPropagation();
+                            onPeekEnd(e);
+                        }}
+                        onMouseLeave={(e) => {
+                            e.stopPropagation();
+                            onPeekEnd(e);
+                        }}
+                        onTouchStart={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            onPeekStart(e);
+                        }}
+                        onTouchEnd={(e) => {
+                            e.stopPropagation();
+                            onPeekEnd(e);
+                        }}
                         onClick={(e) => e.stopPropagation()}
                     >
                         👁️ Hold for context

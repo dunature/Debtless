@@ -2,7 +2,7 @@
 .cardScene {
     perspective: 1000px;
     width: 100%;
-    height: 500px;
+    height: 520px;
     /* Main height definition */
     margin-bottom: var(--space-8);
 }
@@ -29,12 +29,18 @@
     -webkit-backface-visibility: hidden;
     /* Safari */
     border-radius: var(--radius-xl);
-    border: 1px solid var(--border-color);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    /* Slightly more visible border */
     background: var(--color-bg-secondary);
-    box-shadow: var(--shadow-md);
+    box-shadow: var(--shadow-lg);
+    /* Larger shadow for depth */
     display: flex;
     flex-direction: column;
     overflow: hidden;
+}
+
+.cardFaceBack {
+    overflow-y: auto;
 }
 
 /* Front Face Styles */
@@ -53,7 +59,8 @@
 }
 
 .frontWord {
-    font-size: 6rem;
+    font-size: 4rem;
+    /* Scaled back slightly for better fit */
     font-weight: 800;
     color: var(--color-text-primary);
     font-family: var(--font-sans);
@@ -117,6 +124,8 @@
     transition: all 0.2s;
     z-index: 20;
     /* Ensure clickable */
+    user-select: none;
+    -webkit-user-select: none;
 }
 
 .peekButtonFront:active {
@@ -129,7 +138,7 @@
 /* Back Face Styles */
 .cardFaceBack {
     transform: rotateY(180deg);
-    padding: var(--space-8);
+    padding: var(--space-6) var(--space-8);
     justify-content: flex-start;
     text-align: left;
 }
@@ -138,9 +147,9 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: var(--space-4);
+    margin-bottom: var(--space-3);
     border-bottom: 1px solid var(--border-color);
-    padding-bottom: var(--space-4);
+    padding-bottom: var(--space-3);
 }
 
 .headerLeft {
@@ -150,7 +159,7 @@
 }
 
 .backWord {
-    font-size: 2.5rem;
+    font-size: var(--text-2xl);
     font-weight: 700;
     font-family: var(--font-sans);
 }
@@ -177,7 +186,7 @@
     font-family: var(--font-serif);
     font-style: italic;
     color: var(--color-text-muted);
-    font-size: 1.25rem;
+    font-size: var(--text-lg);
 }
 
 .phoneticRow {
@@ -190,7 +199,7 @@
 .phoneticText {
     font-family: var(--font-mono);
     color: var(--color-accent-secondary);
-    font-size: 1.5rem;
+    font-size: var(--text-xl);
     background: rgba(255, 255, 255, 0.05);
     padding: 4px 12px;
     border-radius: var(--radius-sm);
@@ -212,18 +221,18 @@
 
 /* Definition */
 .definitionSection {
-    margin-bottom: var(--space-8);
+    margin-bottom: var(--space-6);
 }
 
 .definitionEn {
-    font-size: 1.5rem;
+    font-size: var(--text-xl);
     color: var(--color-text-primary);
     line-height: 1.5;
     margin-bottom: var(--space-2);
 }
 
 .definitionCn {
-    font-size: 1.25rem;
+    font-size: var(--text-lg);
     color: var(--color-text-muted);
 }
 
@@ -237,10 +246,10 @@
 }
 
 .exampleItem {
-    font-size: 1.125rem;
+    font-size: var(--text-base);
     line-height: 1.6;
     color: var(--color-text-secondary);
-    font-family: var(--font-serif);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     margin-bottom: var(--space-4);
 }
 

@@ -323,6 +323,8 @@ function Step2VocabularyBuild({ words, isLoading: isLoadingWords, onWordAction, 
  */
 function Step3Articulation({ chunk, onComplete, isBilingual }) {
     const [currentSentenceIndex, setCurrentSentenceIndex] = useState(0);
+    const [translations, setTranslations] = useState([]);
+    const [isLoadingTranslations, setIsLoadingTranslations] = useState(false);
     const { speak, stop, isPlaying, isLoading, error } = useTTS();
 
     // Split chunk text into sentences
@@ -331,7 +333,18 @@ function Step3Articulation({ chunk, onComplete, isBilingual }) {
         .filter(s => s.trim().length > 0)
         .slice(0, 5) || []; // Limit to 5 sentences
 
+    // Fetch translations on mount
+    useEffect(() => {
+        if (chunk.id && sentences.length > 0) {
+            setIsLoadingTranslations(true);
+            prefetchService.prefetchTranslations(chunk.id, sentences)
+                .then(setTranslations)
+                .finally(() => setIsLoadingTranslations(false));
+        }
+    }, [chunk.id, sentences.length]);
+
     const currentSentence = sentences[currentSentenceIndex];
+    const currentTranslation = translations[currentSentenceIndex];
     const isLast = currentSentenceIndex >= sentences.length - 1;
 
     const handleNext = () => {
@@ -379,6 +392,7 @@ function Step3Articulation({ chunk, onComplete, isBilingual }) {
             {/* Thought Group Interactive Card */}
             <SentenceCard
                 sentence={currentSentence}
+                translation={currentTranslation || (isLoadingTranslations ? "Translating..." : "")}
                 speak={speak}
                 isPlaying={isPlaying}
                 isBilingual={isBilingual}

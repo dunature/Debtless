@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react';
 import { splitSentenceIntoGroups } from '../../services/chunkingService';
 import styles from './SentenceCard.module.css';
 
-export default function SentenceCard({ sentence, translation, speak, isPlaying }) {
+export default function SentenceCard({ sentence, translation, speak, isPlaying, isBilingual }) {
     const [isSplit, setIsSplit] = useState(false);
     const [thoughtGroups, setThoughtGroups] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -21,8 +21,9 @@ export default function SentenceCard({ sentence, translation, speak, isPlaying }
         setThoughtGroups([]);
         setActiveGroup(null);
         setError(null);
-        setIsZhVisible(false);
-    }, [sentence]);
+        // If global bilingual is on, keep it visible; otherwise hide it for the new sentence
+        setIsZhVisible(isBilingual);
+    }, [sentence, isBilingual]);
 
     const handleToggleSplit = async (e) => {
         e.stopPropagation();
@@ -58,6 +59,13 @@ export default function SentenceCard({ sentence, translation, speak, isPlaying }
         await speak(text, { speed: 0.8 });
         setActiveGroup(null);
     };
+
+    // Sync with global bilingual state
+    useEffect(() => {
+        if (isBilingual) {
+            setIsZhVisible(true);
+        }
+    }, [isBilingual]);
 
     return (
         <div className={`${styles.sentenceCard} animate-in fade-in slide-in-from-top-4`}>
