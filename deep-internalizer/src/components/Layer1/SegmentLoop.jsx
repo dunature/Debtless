@@ -87,11 +87,18 @@ export default function SegmentLoop({
                         words={words}
                         isLoading={isLoadingWords}
                         onWordAction={onWordAction}
+                        isBilingual={isBilingual}
                         onComplete={() => onStepComplete(2)}
                     />
                 );
             case 3:
-                return <Step3Articulation chunk={chunk} onComplete={() => onStepComplete(3)} />;
+                return (
+                    <Step3Articulation
+                        chunk={chunk}
+                        isBilingual={isBilingual}
+                        onComplete={() => onStepComplete(3)}
+                    />
+                );
             case 4:
                 return <Step4FlowPractice chunk={chunk} onComplete={() => onStepComplete(4)} />;
             default:
@@ -174,7 +181,7 @@ function Step1MacroContext({ chunk, isBilingual, onComplete }) {
 /**
  * Step 2: Vocabulary Build - Key words with original context
  */
-function Step2VocabularyBuild({ words, isLoading: isLoadingWords, onWordAction, onComplete }) {
+function Step2VocabularyBuild({ words, isLoading: isLoadingWords, onWordAction, onComplete, isBilingual }) {
     const [currentWordIndex, setCurrentWordIndex] = useState(0);
     const [showPeek, setShowPeek] = useState(false);
     const { speak, isPlaying, isLoading } = useTTS();
@@ -204,8 +211,23 @@ function Step2VocabularyBuild({ words, isLoading: isLoadingWords, onWordAction, 
     };
 
     // Peek Origin handlers
-    const handlePeekStart = () => setShowPeek(true);
-    const handlePeekEnd = () => setShowPeek(false);
+    const handlePeekStart = () => {
+        setShowPeek(true);
+        // Add global listeners to ensure we catch the release even if cursor moves off
+        window.addEventListener('mouseup', handlePeekEndGlobal);
+        window.addEventListener('touchend', handlePeekEndGlobal);
+    };
+
+    const handlePeekEndGlobal = () => {
+        setShowPeek(false);
+        window.removeEventListener('mouseup', handlePeekEndGlobal);
+        window.removeEventListener('touchend', handlePeekEndGlobal);
+    };
+
+    const handlePeekEnd = () => {
+        // Local handler just in case, but global covers it
+        handlePeekEndGlobal();
+    };
 
     // Show loading state while keywords are being fetched
     if (isLoadingWords) {
@@ -266,6 +288,7 @@ function Step2VocabularyBuild({ words, isLoading: isLoadingWords, onWordAction, 
                 isTTSLoading={isLoading}
                 onPeekStart={handlePeekStart}
                 onPeekEnd={handlePeekEnd}
+                isBilingual={isBilingual}
             />
 
             {/* Action buttons */}
@@ -276,13 +299,9 @@ function Step2VocabularyBuild({ words, isLoading: isLoadingWords, onWordAction, 
                 >
                     I know this
                 </button>
-                <button
-                    className="btn btn-primary"
-                    onClick={handleAddWord}
-                >
-                    Add to vocabulary
-                </button>
+                <AddButton onClick={handleAddWord} />
             </div>
+
 
             {/* Peek Origin Overlay */}
             {showPeek && (
@@ -302,7 +321,7 @@ function Step2VocabularyBuild({ words, isLoading: isLoadingWords, onWordAction, 
 /**
  * Step 3: Articulation - Pronunciation practice with sentences
  */
-function Step3Articulation({ chunk, onComplete }) {
+function Step3Articulation({ chunk, onComplete, isBilingual }) {
     const [currentSentenceIndex, setCurrentSentenceIndex] = useState(0);
     const { speak, stop, isPlaying, isLoading, error } = useTTS();
 
@@ -362,6 +381,7 @@ function Step3Articulation({ chunk, onComplete }) {
                 sentence={currentSentence}
                 speak={speak}
                 isPlaying={isPlaying}
+                isBilingual={isBilingual}
             />
 
             <div className={styles.audioControls}>
@@ -505,3 +525,32 @@ function HighlightedSentence({ text, highlight }) {
         </p>
     );
 }
+
+/**
+ * Helper: Add Button with Feedback
+ */
+function AddButton({ onClick }) {
+    const [isAdded, setIsAdded] = useState(false);
+
+    const handleClick = () => {
+        setIsAdded(true);
+        onClick();
+        setTimeout(() => setIsAdded(false), 2000);
+    };
+
+    return (
+        <button
+            className={`btn ${isAdded ? 'btn-success' : 'btn-primary'}`}
+            onClick={handleClick}
+            disabled={isAdded}
+            style={{
+                backgroundColor: isAdded ? 'var(--color-success)' : undefined,
+                borderColor: isAdded ? 'var(--color-success)' : undefined,
+                transition: 'all 0.3s ease'
+            }}
+        >
+            {isAdded ? 'Added ✓' : 'Add to vocabulary'}
+        </button>
+    );
+}
+

@@ -6,11 +6,12 @@ import { useState, useEffect } from 'react';
 import { splitSentenceIntoGroups } from '../../services/chunkingService';
 import styles from './SentenceCard.module.css';
 
-export default function SentenceCard({ sentence, speak, isPlaying }) {
+export default function SentenceCard({ sentence, translation, speak, isPlaying }) {
     const [isSplit, setIsSplit] = useState(false);
     const [thoughtGroups, setThoughtGroups] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
+    const [isZhVisible, setIsZhVisible] = useState(false);
 
     const [activeGroup, setActiveGroup] = useState(null);
 
@@ -20,6 +21,7 @@ export default function SentenceCard({ sentence, speak, isPlaying }) {
         setThoughtGroups([]);
         setActiveGroup(null);
         setError(null);
+        setIsZhVisible(false);
     }, [sentence]);
 
     const handleToggleSplit = async (e) => {
@@ -89,6 +91,21 @@ export default function SentenceCard({ sentence, speak, isPlaying }) {
                         <p className={styles.sentenceText}>{sentence}</p>
                     </div>
                 )}
+
+                {/* Translation Section (Conditional) */}
+                <div className={styles.zhContainer}>
+                    {isZhVisible ? (
+                        <p className={styles.translationZh}>{translation || "Translation not available (demo)"}</p>
+                    ) : (
+                        <button
+                            className={styles.revealBtn}
+                            onClick={() => setIsZhVisible(true)}
+                            title="Show translation"
+                        >
+                            中
+                        </button>
+                    )}
+                </div>
             </div>
 
             {error && <p className={styles.errorMsg}>{error}</p>}

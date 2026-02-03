@@ -2,25 +2,29 @@
     background: var(--color-bg-secondary);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-xl);
-    padding: var(--space-8);
+    padding: var(--space-10);
     position: relative;
-    min-height: 320px;
+    /* transition: all var(--transition-base); */
     display: flex;
     flex-direction: column;
+    min-height: 380px;
     justify-content: center;
+}
+
+.sentenceCard:hover {
+    border-color: var(--border-color-hover);
     box-shadow: var(--shadow-md);
-    transition: all var(--transition-base);
 }
 
 .scissorBtn {
     position: absolute;
-    top: var(--space-4);
-    right: var(--space-4);
-    font-size: 1.25rem;
+    top: var(--space-6);
+    right: var(--space-6);
+    font-size: 1.5rem;
     background: transparent;
     border: none;
     cursor: pointer;
-    padding: var(--space-2);
+    padding: var(--space-3);
     border-radius: var(--radius-md);
     opacity: 0.4;
     transition: all var(--transition-fast);
@@ -42,29 +46,77 @@
 .contentArea {
     flex: 1;
     display: flex;
-    align-items: center;
+    flex-direction: column;
     justify-content: center;
-    width: 100%;
+    align-items: center;
 }
 
 .fullSentenceView {
-    text-align: center;
     width: 100%;
+    text-align: left;
 }
 
 .sentenceText {
-    font-size: var(--text-xl);
-    line-height: 1.8;
-    color: var(--color-text-primary);
+    font-size: 2rem;
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    min-height: 48px;
+    width: 100%;
+    margin-top: var(--space-4);
+    line-height: 1.6;
+    text-align: left;
 }
 
 /* Thought Groups Grid */
 .thoughtGroupsGrid {
     display: flex;
     flex-wrap: wrap;
-    gap: var(--space-3);
+    gap: 8px;
     justify-content: center;
+}
+
+/* Translation Styles */
+.zhContainer {
+    margin-top: var(--space-6);
+    min-height: 32px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
     width: 100%;
+    border-top: 1px dashed var(--border-color);
+    padding-top: var(--space-4);
+}
+
+.revealBtn {
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--border-color);
+    color: var(--color-text-muted);
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    font-size: 0.875rem;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: all var(--transition-fast);
+}
+
+.revealBtn:hover {
+    border-color: var(--color-accent-primary);
+    color: var(--color-accent-primary);
+    transform: scale(1.1);
+}
+
+.translationZh {
+    font-size: 1.25rem;
+    color: var(--color-accent-primary);
+    font-weight: 500;
+    margin: 0;
+    animation: fadeIn 0.3s ease-out;
+    text-align: center;
+    line-height: 1.5;
 }
 
 .thoughtBlock {

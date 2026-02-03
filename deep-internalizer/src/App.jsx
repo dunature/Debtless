@@ -112,7 +112,16 @@ function App() {
       const session = await restoreSession();
       if (session) {
         await loadDocument(session.docId);
-        setCurrentView(VIEW.LAYER0);
+
+        // Restore view mode from session, defaulting to LAYER0
+        const savedView = session.viewMode || VIEW.LAYER0;
+        setCurrentView(savedView);
+
+        // If restoring to Layer 1, ensure store is synced
+        if (savedView === VIEW.LAYER1) {
+          setCurrentChunk(session.currentChunkIndex);
+          setCurrentStep(session.currentStep || 1);
+        }
       } else {
         setCurrentView(VIEW.EMPTY);
       }
@@ -258,7 +267,8 @@ function App() {
       docId: currentDocId,
       currentChunkIndex: index,
       currentStep: 1,
-      subStepProgress: 0
+      subStepProgress: 0,
+      viewMode: VIEW.LAYER1 // Persist view mode
     });
   };
 
@@ -272,7 +282,8 @@ function App() {
       docId: currentDocId,
       currentChunkIndex,
       currentStep,
-      subStepProgress: 0
+      subStepProgress: 0,
+      viewMode: VIEW.LAYER0 // Persist view mode
     });
   };
 
@@ -296,6 +307,15 @@ function App() {
       });
 
       setCurrentView(VIEW.LAYER0);
+
+      // Save session as back to map
+      await saveReadingSession({
+        docId: currentDocId,
+        currentChunkIndex,
+        currentStep: 4,
+        viewMode: VIEW.LAYER0
+      });
+
     } else {
       setCurrentStep(nextStep);
 
@@ -304,7 +324,8 @@ function App() {
         docId: currentDocId,
         currentChunkIndex,
         currentStep: nextStep,
-        subStepProgress: 0
+        subStepProgress: 0,
+        viewMode: VIEW.LAYER1 // Persist view mode
       });
     }
   };

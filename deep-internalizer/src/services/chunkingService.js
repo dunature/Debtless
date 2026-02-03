@@ -41,12 +41,11 @@ For each word provide:
 - word: the word itself
 - phonetic: IPA transcription (use full word transcription)
 - pos: part of speech (e.g., n., v., adj., adv., phr.)
-- slices: split the word into logical syllable blocks. For each block:
-    - text: the character slice of the word
-    - phonetic: the IPA transcription for JUST that slice
+- slices: split the word into logical syllable blocks. Output as an array of tuples: [["text", "ipa"], ...].
+    - text: the character slice
+    - ipa: the IPA transcription for JUST that slice
 - definition: brief definition in English (20 words max)
 - definition_zh: brief definition in Chinese (7 words max)
-- sentence: the EXACT full sentence from the text containing this word
 - newContext: a NEW example sentence using the word (different from the original sentence), preferably from a real-world context.
 
 Output ONLY valid JSON array:
@@ -56,13 +55,12 @@ Output ONLY valid JSON array:
     "phonetic": "/ˈæɡrɪɡeɪt/",
     "pos": "v.",
     "slices": [
-      {"text": "ag", "phonetic": "ˈæɡ"},
-      {"text": "gre", "phonetic": "rɪ"},
-      {"text": "gate", "phonetic": "ɡeɪt"}
+      ["ag", "ˈæɡ"],
+      ["gre", "rɪ"],
+      ["gate", "ɡeɪt"]
     ],
     "definition": "to collect or gather into a whole",
     "definition_zh": "集合；合计",
-    "sentence": "The system will aggregate all user inputs before processing.",
     "newContext": "We need to aggregate the data from multiple sources to get a clear picture."
   }
 ]
@@ -209,7 +207,32 @@ Paragraph:
 ${chunkText}`;
 
     const response = await callOllama(prompt, model, signal);
-    return parseJsonResponse(response);
+    const rawKeywords = parseJsonResponse(response);
+
+    // Post-process: Transform tuple slices and fill sentence
+    const sentences = tokenizeSentences(chunkText);
+
+    return rawKeywords.map(word => {
+        // 1. Transform Slices: [["ag", "ipa"]] -> [{text: "ag", phonetic: "ipa"}]
+        if (Array.isArray(word.slices) && Array.isArray(word.slices[0])) {
+            word.slices = word.slices.map(tuple => ({
+                text: tuple[0],
+                phonetic: tuple[1] || '' // Allow empty if missing
+            }));
+        }
+
+        // 2. Find Sentence
+        if (!word.sentence) {
+            // Simple robust matching: find first sentence containing the word (case-insensitive)
+            const target = word.word.toLowerCase();
+            const matchedSentence = sentences.find(s =>
+                s.toLowerCase().includes(target)
+            );
+            word.sentence = matchedSentence || chunkText.substring(0, 100) + "..."; // Fallback
+        }
+
+        return word;
+    });
 }
 
 // generateNewContext is deprecated as it's now merged into extractKeywords for performance

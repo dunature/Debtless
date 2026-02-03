@@ -2,7 +2,7 @@
  * Vocabulary Card Component
  * Manages individual word state (split/syllable view)
  */
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import styles from './VocabularyCard.module.css';
 
 export default function VocabularyCard({
@@ -10,11 +10,17 @@ export default function VocabularyCard({
     speak,
     isTTSLoading,
     onPeekStart,
-    onPeekEnd
+    onPeekEnd,
+    isBilingual
 }) {
     const [isSplit, setIsSplit] = useState(false);
     const [activeSyllable, setActiveSyllable] = useState(null);
-    const [isZhVisible, setIsZhVisible] = useState(false);
+    const [isZhVisible, setIsZhVisible] = useState(isBilingual);
+
+    // Sync local visibility with global toggle
+    useEffect(() => {
+        setIsZhVisible(isBilingual);
+    }, [isBilingual]);
 
     const toggleSplit = (e) => {
         e.stopPropagation();
@@ -29,81 +35,153 @@ export default function VocabularyCard({
         setActiveSyllable(null);
     };
 
-    return (
-        <div className={`${styles.wordCard} animate-in fade-in slide-in-from-top-4`}>
-            {/* Scissors (Split Phonetic) Button */}
-            <button
-                className={`${styles.scissorBtn} ${isSplit ? styles.active : ''}`}
-                onClick={toggleSplit}
-                title={isSplit ? "Show full word" : "Split into syllables"}
-            >
-                ✂️
-            </button>
+    // Peek wrapper to prevent default behaviors (text selection, context menu)
+    const handlePeekStart = (e) => {
+        if (e.type === 'touchstart') {
+            e.preventDefault();
+        }
+        onPeekStart(e);
+    };
 
-            <div className={styles.wordMain}>
-                {isSplit && word.slices ? (
-                    <div className={styles.splitWord}>
-                        {word.slices.map((slice, idx) => (
-                            <div
-                                key={idx}
-                                className={`${styles.syllableBlock} ${activeSyllable === idx ? styles.playing : ''}`}
-                                onClick={(e) => handlePlaySyllable(e, slice, idx)}
-                                style={{ animationDelay: `${idx * 50}ms` }}
-                            >
-                                <span className={styles.syllableText}>{slice.text}</span>
-                                <span className={styles.syllablePhonetic}>{slice.phonetic}</span>
-                            </div>
-                        ))}
-                    </div>
-                ) : (
-                    <div className={styles.wordTitleRow}>
-                        <div className={styles.wordHeader}>
-                            <span className={styles.wordText}>{word.word}</span>
-                            {word.pos && <span className={styles.pos}>{word.pos}</span>}
-                        </div>
-                        <div className={styles.wordMeta}>
+    const [isFlipped, setIsFlipped] = useState(false);
+
+    // Reset flip state when word changes
+    if (word !== word) {
+        setIsFlipped(false);
+    }
+
+    const handleCardClick = () => {
+        if (!isSplit) {
+            setIsFlipped(!isFlipped);
+        }
+    };
+
+    return (
+        <div className={styles.cardScene}>
+            <div
+                className={`${styles.cardObject} ${isFlipped ? styles.flipped : ''}`}
+                onClick={handleCardClick}
+            >
+                {/* Front Face: Target Word */}
+                <div className={styles.cardFaceFront}>
+                    <div className={styles.frontContent}>
+                        <h2 className={styles.frontWord}>{word.word}</h2>
+
+                        {/* Phonetics on Front */}
+                        <div className={styles.phoneticRowFront}>
+                            <span className={styles.phoneticText}>{word.phonetic}</span>
                             <button
-                                className={`btn btn-ghost ${styles.wordAudioBtn}`}
+                                className={`${styles.scissorBtn} ${isSplit ? styles.active : ''}`}
+                                onClick={toggleSplit}
+                                title="Split into syllables"
+                            >
+                                ✂️
+                            </button>
+                        </div>
+
+                        {/* Split View on Front (if active) */}
+                        {isSplit && word.slices && (
+                            <div className={styles.syllableContainerFront}>
+                                {word.slices.map((slice, idx) => (
+                                    <div
+                                        key={idx}
+                                        className={styles.syllableColumn}
+                                        onClick={(e) => handlePlaySyllable(e, slice, idx)}
+                                    >
+                                        <span className={`${styles.syllableChip} ${activeSyllable === idx ? styles.playing : ''}`}>
+                                            {slice.text}
+                                        </span>
+                                        {slice.phonetic && (
+                                            <span className={styles.syllablePhonetic}>{slice.phonetic}</span>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {!isSplit && (
+                            <div className={styles.frontHint}>
+                                <span className={styles.clickToFlip}>Tap to flip</span>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Peek Button on Front */}
+                    <button
+                        className={styles.peekButtonFront}
+                        onMouseDown={(e) => { e.stopPropagation(); handlePeekStart(e); }}
+                        onMouseUp={(e) => { e.stopPropagation(); onPeekEnd(e); }}
+                        onMouseLeave={(e) => { e.stopPropagation(); onPeekEnd(e); }}
+                        onTouchStart={(e) => { e.stopPropagation(); handlePeekStart(e); }}
+                        onTouchEnd={(e) => { e.stopPropagation(); onPeekEnd(e); }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        👁️ Hold for context
+                    </button>
+                </div>
+
+                {/* Back Face: Details */}
+                <div className={styles.cardFaceBack}>
+                    {/* Top Row: Word + Audio + POS */}
+                    <div className={styles.cardBackHeader}>
+                        <div className={styles.headerLeft}>
+                            <span className={styles.backWord}>{word.word}</span>
+                            <button
+                                className={styles.audioBtn}
                                 onClick={(e) => { e.stopPropagation(); speak(word.word); }}
                                 disabled={isTTSLoading}
-                                title="Listen to pronunciation"
                             >
-                                {isTTSLoading ? '⏳' : '🔊'}
+                                {isTTSLoading ? '...' : '🔊'}
                             </button>
-                            <span className={styles.phonetic}>{word.phonetic}</span>
+                        </div>
+                        {word.pos && <span className={styles.posTag}>{word.pos}</span>}
+                    </div>
+
+                    {/* Core Definition */}
+                    <div className={styles.definitionSection}>
+                        <p className={styles.definitionEn}>{word.definition}</p>
+                        {word.definition_zh && (
+                            <div className={styles.zhContainer}>
+                                {isZhVisible ? (
+                                    <p className={styles.definitionCn}>{word.definition_zh}</p>
+                                ) : (
+                                    <button
+                                        className={styles.revealBtn}
+                                        onClick={(e) => { e.stopPropagation(); setIsZhVisible(true); }}
+                                    >
+                                        中
+                                    </button>
+                                )}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Example Sentences */}
+                    <div className={styles.exampleSection}>
+                        <div className={styles.exampleItem}>
+                            <HighlightedText text={word.sentence} highlight={word.word} />
                         </div>
                     </div>
-                )}
-            </div>
-
-            <p className={styles.definition}>{word.definition}</p>
-
-            {word.definition_zh && (
-                <div className={styles.zhContainer}>
-                    {isZhVisible ? (
-                        <p className={styles.definitionZh}>{word.definition_zh}</p>
-                    ) : (
-                        <button
-                            className={styles.revealBtn}
-                            onClick={() => setIsZhVisible(true)}
-                        >
-                            中
-                        </button>
-                    )}
                 </div>
-            )}
-
-            {/* Peek Origin Button */}
-            <button
-                className={styles.peekButton}
-                onMouseDown={onPeekStart}
-                onMouseUp={onPeekEnd}
-                onMouseLeave={onPeekEnd}
-                onTouchStart={onPeekStart}
-                onTouchEnd={onPeekEnd}
-            >
-                👁️ Hold to see original context
-            </button>
+            </div>
         </div>
+    );
+}
+
+// Helper to highlight word in text
+function HighlightedText({ text, highlight }) {
+    if (!text) return null;
+    if (!highlight) return <p>{text}</p>;
+
+    // Simple case-insensitive split/join
+    const parts = text.split(new RegExp(`(${highlight})`, 'gi'));
+    return (
+        <p>
+            {parts.map((part, i) =>
+                part.toLowerCase() === highlight.toLowerCase()
+                    ? <strong key={i} style={{ color: 'var(--color-accent-primary)' }}>{part}</strong>
+                    : part
+            )}
+        </p>
     );
 }
