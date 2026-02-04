@@ -204,11 +204,32 @@ function Step1MacroContext({ chunk, isBilingual, onComplete }) {
 function Step2VocabularyBuild({ words, isLoading: isLoadingWords, onWordAction, onComplete, isBilingual }) {
     const [currentWordIndex, setCurrentWordIndex] = useState(0);
     const [showPeek, setShowPeek] = useState(false);
+    const [isDeferred, setIsDeferred] = useState(false);
     const { speak, isLoading } = useTTS();
 
     const currentWord = words[currentWordIndex];
     const hasWords = words.length > 0;
     const isLastWord = currentWordIndex >= words.length - 1;
+
+    useEffect(() => {
+        if (isLoadingWords) {
+            setIsDeferred(false);
+            return;
+        }
+
+        setIsDeferred(true);
+        let cancel = () => {};
+
+        if (typeof requestIdleCallback !== 'undefined') {
+            const id = requestIdleCallback(() => setIsDeferred(false));
+            cancel = () => cancelIdleCallback(id);
+        } else {
+            const id = setTimeout(() => setIsDeferred(false), 0);
+            cancel = () => clearTimeout(id);
+        }
+
+        return () => cancel();
+    }, [isLoadingWords, words.length]);
 
     const handleNext = () => {
         if (isLastWord) {
@@ -271,6 +292,26 @@ function Step2VocabularyBuild({ words, isLoading: isLoadingWords, onWordAction, 
                 <div className={styles.loadingSpinner}>
                     <div className="spinner"></div>
                     <p>🔍 Extracting key vocabulary<span className={styles.loadingDots}></span></p>
+                </div>
+            </div>
+        );
+    }
+
+    if (isDeferred) {
+        return (
+            <div className={styles.stepContent}>
+                <div className={styles.stepHeader}>
+                    <span className={styles.stepLabel}>Step 2</span>
+                    <h3>Vocabulary Build</h3>
+                    <p className={styles.stepDesc}>Preparing word cards...</p>
+                </div>
+
+                <div className={styles.skeletonContainer}>
+                    <div className={styles.skeletonCard}>
+                        <div className={styles.skeletonWord}></div>
+                        <div className={styles.skeletonPhonetic}></div>
+                        <div className={styles.skeletonDefinition}></div>
+                    </div>
                 </div>
             </div>
         );
@@ -589,4 +630,3 @@ function AddButton({ onClick }) {
         </button>
     );
 }
-

@@ -3,7 +3,7 @@
  * For importing new documents via text paste
  */
 import { useState, useRef } from 'react';
-import { parseFile } from '../../utils/fileParser';
+import { parseFile, cleanTextPreserveParagraphs } from '../../utils/fileParser';
 import ThinkingProcess from './ThinkingProcess';
 import styles from './ImportModal.module.css';
 
@@ -14,6 +14,12 @@ export default function ImportModal({ isOpen, onClose, onImport, isLoading, proc
     const [isParsing, setIsParsing] = useState(false);
     const [selectedFile, setSelectedFile] = useState(null);
     const [isDragging, setIsDragging] = useState(false);
+    const [parseProgress, setParseProgress] = useState({});
+    const [autoCleaned, setAutoCleaned] = useState(false);
+    const [autoCleanOriginal, setAutoCleanOriginal] = useState('');
+    const [autoCleanEnabled, setAutoCleanEnabled] = useState(true);
+    const [parseStartedAt, setParseStartedAt] = useState(0);
+    const [parseMetrics, setParseMetrics] = useState(null);
 
     const fileInputRef = useRef(null);
 
@@ -24,51 +30,13 @@ export default function ImportModal({ isOpen, onClose, onImport, isLoading, proc
         }
     };
 
-    const processFile = async (file) => {
-        setIsParsing(true);
-        setError('');
-        try {
-            const result = await parseFile(file);
-            if (!title) {
-                setTitle(result.title);
-            }
-
-            // Smart append/replace logic
-            if (content.trim()) {
-                const shouldAppend = window.confirm(
-                    'Content field is not empty. Do you want to APPEND the new file content? \n(Cancel will REPLACE existing content)'
-                );
-
-                if (shouldAppend) {
-                    setContent(prev => prev + '\n\n' + result.content);
-                } else {
-                    setContent(result.content);
-                }
-            } else {
-                setContent(result.content);
-            }
-
-            setSelectedFile(file);
-        } catch (err) {
-            console.error('File parsing error:', err);
-            setError(`Failed to parse file: ${err.message}`);
-        } finally {
-            setIsParsing(false);
-        }
-    };
-
     const handleCleanText = () => {
         if (!content) return;
-        // Logic: Replace single newlines with spaces, but keep double newlines (paragraphs)
-        // 1. Split by double newlines to preserve paragraphs
-        // 2. In each paragraph, replace single newlines with spaces
-        // 3. Join back with double newlines
-        const cleaned = content
-            .split(/\n\n+/)
-            .map(para => para.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim())
-            .join('\n\n');
+        const cleaned = cleanTextPreserveParagraphs(content);
 
         setContent(cleaned);
+        setAutoCleaned(false);
+        setAutoCleanOriginal('');
     };
 
     const handleDragOver = (e) => {
@@ -115,7 +83,7 @@ export default function ImportModal({ isOpen, onClose, onImport, isLoading, proc
             return;
         }
 
-        onImport({ title: title.trim(), content: content.trim() });
+        onImport({ title: title.trim(), content: content.trim(), parseMetrics });
     };
 
     const handleClose = () => {
@@ -123,7 +91,93 @@ export default function ImportModal({ isOpen, onClose, onImport, isLoading, proc
         setContent('');
         setError('');
         setSelectedFile(null);
+        setParseProgress({});
+        setAutoCleaned(false);
+        setAutoCleanOriginal('');
+        setAutoCleanEnabled(true);
+        setParseStartedAt(0);
+        setParseMetrics(null);
         onClose();
+    };
+
+    const formatMs = (ms) => {
+        if (ms == null) return '';
+        if (ms < 1000) return `${ms}ms`;
+        return `${(ms / 1000).toFixed(1)}s`;
+    };
+
+    const formatParseError = (file, err) => {
+        const extension = file?.name?.split('.').pop()?.toLowerCase() || '';
+        const base = err?.message ? ` (${err.message})` : '';
+
+        if (extension === 'pdf') {
+            return `PDF 解析失败。可能是扫描版或加密文件，请尝试导出为文本后再导入${base}`;
+        }
+        if (extension === 'docx') {
+            return `DOCX 解析失败。文件可能受保护或损坏，请另存为 .docx 或 .txt 后重试${base}`;
+        }
+        if (extension === 'txt') {
+            return `文本读取失败。请确认编码为 UTF-8 或重新另存为 .txt${base}`;
+        }
+        return `文件解析失败，请尝试转换格式后再导入${base}`;
+    };
+
+    const processFile = async (file) => {
+        const existingContent = content;
+        const hasExistingContent = Boolean(existingContent.trim());
+
+        setIsParsing(true);
+        setError('');
+        setParseProgress({ message: 'Preparing to read file...' });
+        setAutoCleaned(false);
+        setAutoCleanOriginal('');
+        setParseStartedAt(Date.now());
+        setParseMetrics(null);
+        try {
+            const result = await parseFile(file, {
+                onProgress: (progress) => setParseProgress(progress || {}),
+                autoClean: autoCleanEnabled
+            });
+            if (!title) {
+                setTitle(result.title);
+            }
+
+            // Smart append/replace logic
+            let didAppend = false;
+            if (hasExistingContent) {
+                const shouldAppend = window.confirm(
+                    'Content field is not empty. Do you want to APPEND the new file content? \n(Cancel will REPLACE existing content)'
+                );
+
+                if (shouldAppend) {
+                    didAppend = true;
+                    setContent(prev => prev + '\n\n' + result.content);
+                } else {
+                    setContent(result.content);
+                }
+            } else {
+                setContent(result.content);
+            }
+
+            setSelectedFile(file);
+            if (result.cleaned) {
+                const rawContent = result.rawContent || result.content;
+                setAutoCleaned(true);
+                setAutoCleanOriginal(didAppend ? `${existingContent}\n\n${rawContent}` : rawContent);
+            } else {
+                setAutoCleaned(false);
+                setAutoCleanOriginal('');
+            }
+            setParseMetrics({
+                parseMs: result.parseMs ?? 0,
+                cleanMs: result.cleanMs ?? 0
+            });
+        } catch (err) {
+            console.error('File parsing error:', err);
+            setError(formatParseError(file, err));
+        } finally {
+            setIsParsing(false);
+        }
     };
 
     if (!isOpen) return null;
@@ -166,7 +220,17 @@ export default function ImportModal({ isOpen, onClose, onImport, isLoading, proc
                                 {isParsing ? (
                                     <div className={styles.parsingState}>
                                         <span className="spinner" />
-                                        <p>Extracting text from file...</p>
+                                        <p>{parseProgress.message || 'Extracting text from file...'}</p>
+                                        {parseProgress.current && parseProgress.total ? (
+                                            <span className={styles.parseHint}>
+                                                {Math.round((parseProgress.current / parseProgress.total) * 100)}% · {parseProgress.current}/{parseProgress.total}
+                                                {parseStartedAt && parseProgress.current > 0 ? (() => {
+                                                    const elapsed = Date.now() - parseStartedAt;
+                                                    const remaining = Math.max(0, Math.round((elapsed / parseProgress.current) * (parseProgress.total - parseProgress.current) / 1000));
+                                                    return remaining > 0 ? ` · ~${remaining}s` : '';
+                                                })() : ''}
+                                            </span>
+                                        ) : null}
                                     </div>
                                 ) : selectedFile ? (
                                     <div className={styles.fileInfo}>
@@ -194,6 +258,11 @@ export default function ImportModal({ isOpen, onClose, onImport, isLoading, proc
                                     </div>
                                 )}
                             </div>
+                            {selectedFile && !isParsing && parseMetrics ? (
+                                <div className={styles.parseMetrics}>
+                                    解析耗时 {formatMs(parseMetrics.parseMs)} · 清洗耗时 {formatMs(parseMetrics.cleanMs)}
+                                </div>
+                            ) : null}
                         </div>
 
                         <div className={styles.field}>
@@ -212,21 +281,38 @@ export default function ImportModal({ isOpen, onClose, onImport, isLoading, proc
                         <div className={styles.field}>
                             <div className={styles.labelRow}>
                                 <label htmlFor="content">Content Preview</label>
-                                {content && (
-                                    <button
-                                        type="button"
-                                        onClick={handleCleanText}
-                                        className={styles.textActionBtn}
-                                        title="Fix broken lines (keep paragraphs)"
-                                    >
-                                        ✨ Clean Text
-                                    </button>
-                                )}
+                                <div className={styles.cleanControls}>
+                                    <label className={styles.toggle}>
+                                        <input
+                                            type="checkbox"
+                                            checked={autoCleanEnabled}
+                                            onChange={(e) => setAutoCleanEnabled(e.target.checked)}
+                                            disabled={isParsing || isLoading}
+                                        />
+                                        <span>Auto-clean on import</span>
+                                    </label>
+                                    {content && (
+                                        <button
+                                            type="button"
+                                            onClick={handleCleanText}
+                                            className={styles.textActionBtn}
+                                            title="Fix broken lines (keep paragraphs)"
+                                        >
+                                            ✨ Clean Text
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                             <textarea
                                 id="content"
                                 value={content}
-                                onChange={e => setContent(e.target.value)}
+                                onChange={e => {
+                                    setContent(e.target.value);
+                                    if (autoCleaned || autoCleanOriginal) {
+                                        setAutoCleaned(false);
+                                        setAutoCleanOriginal('');
+                                    }
+                                }}
                                 placeholder="Paste your English text here or use the upload above..."
                                 className={styles.textarea}
                                 rows={selectedFile ? 6 : 10}
@@ -235,6 +321,24 @@ export default function ImportModal({ isOpen, onClose, onImport, isLoading, proc
                             <span className={styles.wordCount}>
                                 {content.split(/\s+/).filter(w => w).length} words
                             </span>
+                            {autoCleaned && (
+                                <div className={styles.autoCleanNotice}>
+                                    Auto-clean applied to fix broken line breaks.
+                                    {autoCleanOriginal ? (
+                                        <button
+                                            type="button"
+                                            className={styles.undoBtn}
+                                            onClick={() => {
+                                                setContent(autoCleanOriginal);
+                                                setAutoCleaned(false);
+                                                setAutoCleanOriginal('');
+                                            }}
+                                        >
+                                            Undo
+                                        </button>
+                                    ) : null}
+                                </div>
+                            )}
                         </div>
 
                         {error && (

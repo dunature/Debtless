@@ -10,17 +10,21 @@ import { useAppStore } from './stores/appStore';
 import {
   db,
   createDocument,
-  createChunk,
+  createChunksBulk,
   createWord,
   getDocumentWithChunks,
   getPendingWords,
+  getAnalysisCache,
+  setAnalysisCache,
   WordStatus,
   saveReadingSession
 } from './db/schema';
 import {
   chunkDocument,
-  generateCoreThesis
+  generateCoreThesis,
+  DEFAULT_MODEL
 } from './services/chunkingService';
+import { hashText } from './utils/hash';
 import './App.css';
 
 // View states
@@ -87,6 +91,12 @@ function App() {
     });
   };
 
+  const formatDuration = (ms) => {
+    if (ms == null) return '';
+    if (ms < 1000) return `${ms}ms`;
+    return `${(ms / 1000).toFixed(1)}s`;
+  };
+
   // Check debt and restore session on mount
   useEffect(() => {
     const init = async () => {
@@ -139,7 +149,7 @@ function App() {
   };
 
   // Handle document import
-  const handleImport = async ({ title, content }) => {
+  const handleImport = async ({ title, content, parseMetrics }) => {
     // Cancel any in-flight requests
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -155,21 +165,49 @@ function App() {
     setProcessingLogs([]);
     setProcessingStep('INITIALIZING');
     addLog('Initializing import sequence...', 'active');
+    if (parseMetrics && (parseMetrics.parseMs || parseMetrics.cleanMs)) {
+      const parseTime = formatDuration(parseMetrics.parseMs ?? 0);
+      const cleanTime = formatDuration(parseMetrics.cleanMs ?? 0);
+      const cleanNote = parseMetrics.cleanMs ? ` (auto-clean ${cleanTime})` : '';
+      addLog(`File parsed in ${parseTime}${cleanNote}`, 'done');
+    }
 
     try {
-      // Parallel LLM processing: thesis + chunking run simultaneously
-      setProcessingStep('PARALLEL_PROCESSING');
-      addLog('Running parallel AI analysis (thesis + chunking)...');
+      let coreThesis = '';
+      let semanticChunks = [];
 
-      const [coreThesis, semanticChunks] = await Promise.all([
-        generateCoreThesis(content, undefined, signal),
-        chunkDocument(content, undefined, signal)
-      ]);
+      const contentHash = await hashText(`${DEFAULT_MODEL}|${content}`);
+      if (operationId !== asyncOperationIdRef.current) return;
+
+      const cached = await getAnalysisCache(contentHash);
+      if (operationId !== asyncOperationIdRef.current) return;
+
+      const cacheHit = Boolean(cached?.coreThesis && Array.isArray(cached.chunks) && cached.chunks.length > 0);
+
+      if (cacheHit) {
+        coreThesis = cached.coreThesis;
+        semanticChunks = cached.chunks;
+        addLog('Cache hit: reusing previous analysis', 'done');
+      } else {
+        // Parallel LLM processing: thesis + chunking run simultaneously
+        setProcessingStep('PARALLEL_PROCESSING');
+        addLog('Running parallel AI analysis (thesis + chunking)...');
+
+        [coreThesis, semanticChunks] = await Promise.all([
+          generateCoreThesis(content, undefined, signal),
+          chunkDocument(content, undefined, signal)
+        ]);
+      }
 
       if (operationId !== asyncOperationIdRef.current) return;
 
       addLog(`Thesis: "${coreThesis.substring(0, 30)}..."`, 'done');
       addLog(`Created ${semanticChunks.length} semantic chunks`, 'done');
+
+      if (!cacheHit) {
+        setAnalysisCache(contentHash, coreThesis, semanticChunks, DEFAULT_MODEL)
+          .catch((error) => console.warn('[Cache] Failed to store analysis:', error));
+      }
 
       // Create document
       setProcessingStep('PERSISTENCE');
@@ -178,22 +216,17 @@ function App() {
 
       if (operationId !== asyncOperationIdRef.current) return;
 
-      // Save chunks
+      // Save chunks (batched bulk insert for performance + progress)
       setProcessingStep('SAVING');
-      addLog('Anchoring knowledge points to local database...');
-      for (let i = 0; i < semanticChunks.length; i++) {
-        const chunk = semanticChunks[i];
-        if (i % 2 === 0) addLog(`Processing chunk ${i + 1}/${semanticChunks.length}...`);
-
-        await createChunk(
-          docId,
-          i,
-          chunk.title,
-          chunk.summary,
-          chunk.originalText,
-          chunk.summary_zh
-        );
-      }
+      addLog(`Anchoring ${semanticChunks.length} knowledge points to local database...`);
+      await createChunksBulk(docId, semanticChunks, {
+        batchSize: 50,
+        onBatch: ({ inserted, total, batchIndex, batchCount }) => {
+          if (batchCount > 1) {
+            addLog(`Saved ${inserted}/${total} chunks (${batchIndex + 1}/${batchCount})...`);
+          }
+        }
+      });
 
       if (operationId !== asyncOperationIdRef.current) return;
       addLog('All chunks anchored successfully', 'done');

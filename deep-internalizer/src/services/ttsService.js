@@ -21,6 +21,7 @@ class TTSService {
     constructor() {
         // Track in-flight requests to prevent duplicates
         this.inFlightRequests = new Map();
+        this.inFlightPrefetch = new Map();
     }
 
     /**
@@ -66,6 +67,16 @@ class TTSService {
                 return this.inFlightRequests.get(cacheKey);
             }
 
+            // 2.5 If a prefetch is in-flight, wait for it and retry cache
+            if (this.inFlightPrefetch.has(cacheKey)) {
+                console.log(`[TTS] Waiting for prefetch: "${word}"`);
+                await this.inFlightPrefetch.get(cacheKey);
+                const prefetched = await db.wordAudio.get(cacheKey);
+                if (prefetched) {
+                    return URL.createObjectURL(prefetched.blob);
+                }
+            }
+
             // 3. Fetch and cache
             const promise = this._fetchAndCacheWord(cacheKey, voice);
             this.inFlightRequests.set(cacheKey, promise);
@@ -100,6 +111,50 @@ class TTSService {
         this._cleanupCacheIfNeeded();
 
         return URL.createObjectURL(blob);
+    }
+
+    async _fetchAndCacheWordBlob(word, voice) {
+        console.log(`[TTS] Prefetching: "${word}"`);
+        const blob = await this.fetchFromServer(word, voice);
+
+        await db.wordAudio.put({
+            word: word,
+            blob: blob,
+            createdAt: Date.now()
+        });
+
+        this._cleanupCacheIfNeeded();
+    }
+
+    /**
+     * Prefetch a word without creating an object URL
+     */
+    async prefetchWord(word, voice = 'default') {
+        const cacheKey = word.toLowerCase();
+
+        const cached = await db.wordAudio.get(cacheKey);
+        if (cached) {
+            return;
+        }
+
+        if (this.inFlightRequests.has(cacheKey)) {
+            await this.inFlightRequests.get(cacheKey);
+            return;
+        }
+
+        if (this.inFlightPrefetch.has(cacheKey)) {
+            await this.inFlightPrefetch.get(cacheKey);
+            return;
+        }
+
+        const promise = this._fetchAndCacheWordBlob(cacheKey, voice);
+        this.inFlightPrefetch.set(cacheKey, promise);
+
+        try {
+            await promise;
+        } finally {
+            this.inFlightPrefetch.delete(cacheKey);
+        }
     }
 
     /**
@@ -162,7 +217,7 @@ class TTSService {
     prefetchWords(words) {
         words.forEach(word => {
             // Don't await - fire and forget
-            this.speakWord(word).catch(e => {
+            this.prefetchWord(word).catch(e => {
                 console.warn(`[TTS] Prefetch failed for "${word}":`, e.message);
             });
         });

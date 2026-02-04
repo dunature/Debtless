@@ -41,6 +41,81 @@ db.version(3).stores({
   sentenceTranslations: 'chunkId'
 });
 
+db.version(4).stores({
+  // Documents: imported articles/texts
+  documents: 'id, title, importedAt, lastAccessedAt',
+
+  // Chunks: semantic segments of documents
+  chunks: 'id, docId, index, completed',
+
+  // Words: vocabulary items extracted from chunks
+  words: 'id, chunkId, text, status, addedAt',
+
+  // Review records: history of word reviews
+  reviewRecords: 'id, wordId, action, reviewedAt',
+
+  // Reading sessions: state persistence for resume
+  readingSessions: 'docId',
+
+  // User stats: daily progress for heatmap
+  userStats: 'date',
+
+  // === CACHING TABLES ===
+  // Word audio cache (TTS)
+  wordAudio: 'word, createdAt',
+
+  // Syllable audio cache (common syllables only)
+  syllableAudio: 'syllable, createdAt',
+
+  // LLM response cache for keywords
+  chunkKeywords: 'chunkId',
+
+  // Sentence translations cache
+  sentenceTranslations: 'chunkId',
+
+  // Document analysis cache (core thesis + chunks)
+  analysisCache: 'hash, createdAt'
+});
+
+db.version(5).stores({
+  // Documents: imported articles/texts
+  documents: 'id, title, importedAt, lastAccessedAt',
+
+  // Chunks: semantic segments of documents
+  chunks: 'id, docId, index, completed',
+
+  // Words: vocabulary items extracted from chunks
+  words: 'id, chunkId, text, status, addedAt',
+
+  // Review records: history of word reviews
+  reviewRecords: 'id, wordId, action, reviewedAt',
+
+  // Reading sessions: state persistence for resume
+  readingSessions: 'docId',
+
+  // User stats: daily progress for heatmap
+  userStats: 'date',
+
+  // === CACHING TABLES ===
+  // Word audio cache (TTS)
+  wordAudio: 'word, createdAt',
+
+  // Syllable audio cache (common syllables only)
+  syllableAudio: 'syllable, createdAt',
+
+  // LLM response cache for keywords
+  chunkKeywords: 'chunkId',
+
+  // Sentence translations cache
+  sentenceTranslations: 'chunkId',
+
+  // Document analysis cache (core thesis + chunks)
+  analysisCache: 'hash, createdAt',
+
+  // Thought groups cache for sentences
+  thoughtGroups: 'hash, createdAt'
+});
+
 // Enums
 export const WordStatus = {
   PENDING: 'pending',
@@ -52,6 +127,9 @@ export const ReviewAction = {
   KEEP: 'keep',
   ARCHIVE: 'archive'
 };
+
+const MAX_ANALYSIS_CACHE_SIZE = 20;
+const MAX_THOUGHT_GROUP_CACHE_SIZE = 400;
 
 // Helper functions
 export async function createDocument(title, rawContent, coreThesis = '') {
@@ -87,6 +165,49 @@ export async function createChunk(docId, index, title, summary, originalText, su
   });
 
   return id;
+}
+
+export async function createChunksBulk(docId, chunks = [], options = {}) {
+  if (!chunks.length) return [];
+
+  const { batchSize = 50, onBatch } = options;
+  const ids = [];
+  const total = chunks.length;
+  const batchCount = Math.ceil(total / batchSize);
+
+  for (let start = 0, batchIndex = 0; start < total; start += batchSize, batchIndex += 1) {
+    const slice = chunks.slice(start, start + batchSize);
+    const records = slice.map((chunk, offset) => {
+      const id = crypto.randomUUID();
+      ids.push(id);
+
+      return {
+        id,
+        docId,
+        index: start + offset,
+        title: chunk.title,
+        summary: chunk.summary,
+        summary_zh: chunk.summary_zh || '',
+        originalText: chunk.originalText,
+        currentStep: 1,
+        totalSteps: 4,
+        completed: false
+      };
+    });
+
+    await db.chunks.bulkAdd(records);
+
+    if (typeof onBatch === 'function') {
+      onBatch({
+        batchIndex,
+        batchCount,
+        inserted: Math.min(start + slice.length, total),
+        total
+      });
+    }
+  }
+
+  return ids;
 }
 
 export async function createWord(chunkId, text, phonetic, definition, originalContext, newContext = '', slices = [], pos = '', definition_zh = '') {
@@ -128,6 +249,65 @@ export async function getDocumentWithChunks(docId) {
     .sortBy('index');
 
   return { ...doc, chunks };
+}
+
+export async function getAnalysisCache(hash) {
+  if (!hash) return null;
+  return await db.analysisCache.get(hash);
+}
+
+export async function setAnalysisCache(hash, coreThesis, chunks, model = '') {
+  if (!hash) return;
+  await db.analysisCache.put({
+    hash,
+    coreThesis,
+    chunks,
+    model,
+    createdAt: Date.now()
+  });
+
+  try {
+    const count = await db.analysisCache.count();
+    if (count > MAX_ANALYSIS_CACHE_SIZE) {
+      const toDelete = count - MAX_ANALYSIS_CACHE_SIZE;
+      const oldest = await db.analysisCache
+        .orderBy('createdAt')
+        .limit(toDelete)
+        .toArray();
+      await db.analysisCache.bulkDelete(oldest.map(item => item.hash));
+    }
+  } catch (error) {
+    console.warn('[Cache] Analysis cache cleanup failed:', error);
+  }
+}
+
+export async function getThoughtGroupsCache(hash) {
+  if (!hash) return null;
+  return await db.thoughtGroups.get(hash);
+}
+
+export async function setThoughtGroupsCache(hash, groups, model = '') {
+  if (!hash) return;
+  await db.thoughtGroups.put({
+    hash,
+    groups,
+    model,
+    createdAt: Date.now()
+  });
+
+  try {
+    const count = await db.thoughtGroups.count();
+    if (count > MAX_THOUGHT_GROUP_CACHE_SIZE) {
+      const toDelete = count - MAX_THOUGHT_GROUP_CACHE_SIZE;
+      const oldest = await db.thoughtGroups
+        .orderBy('createdAt')
+        .limit(toDelete)
+        .toArray();
+      await db.thoughtGroups.bulkDelete(oldest.map(item => item.hash));
+    }
+  } catch (error) {
+    console.warn('[Cache] Thought group cache cleanup failed:', error);
+  }
 }
 
 export async function saveReadingSession(session) {

@@ -107,7 +107,31 @@ src/
     └── useTTS.js        # React Adapter for Speech
 ```
 
-## � Quick Start (快速开始)
+---
+
+## 📖 User Guide: The Cognitive Journey (用户指南)
+
+Detailed instructions with visual aids can be found in the [Root READ.md](../READ.md). Below is a summary of the 4-step immersion loop:
+
+### 1. Ingestion & Analysis
+Paste text or upload documents. The "Thinking UI" reveals the AI's logic mapping process.
+![Import](../docs/images/img_import.png)
+
+### 2. Global Logic Map (Layer 0)
+The document is synthesized into a core thesis and thematic chunks.
+![Logic Map](../docs/images/img_layer0.png)
+
+### 3. The Immersion Loop (Layer 1)
+- **Macro Context**: Establish a semantic framework.
+- **Vocabulary Build**: Interactive flashcards with X-Ray context.
+- **Articulation**: Train phonological memory with TTS & IPA.
+- **Flow Practice**: Achieve reading fluency (WPM tracking).
+
+![Immersion Loop](../docs/images/img_step2.png)
+
+---
+
+## Quick Start (快速开始)
 
 ### Prerequisites (前置要求)
 - Node.js 18+

@@ -11,6 +11,13 @@ class PrefetchService {
         // Track pending prefetch operations
         this.pendingKeywords = new Map(); // chunkId -> { promise, abort }
         this.pendingTranslations = new Map(); // chunkId -> { promise, abort }
+
+        // TTS prefetch queue controls
+        this.ttsQueue = [];
+        this.ttsQueued = new Set();
+        this.ttsInFlight = 0;
+        this.ttsConcurrency = 3;
+        this.ttsMaxPerChunk = 12;
     }
 
     /**
@@ -119,8 +126,17 @@ class PrefetchService {
         if (!words || words.length === 0) return;
 
         const wordTexts = words.map(w => w.word || w.text).filter(Boolean);
-        console.log(`[Prefetch] TTS prefetch for ${wordTexts.length} words`);
-        ttsService.prefetchWords(wordTexts);
+        const unique = Array.from(new Set(wordTexts)).slice(0, this.ttsMaxPerChunk);
+        if (unique.length === 0) return;
+
+        console.log(`[Prefetch] TTS prefetch queued for ${unique.length} words`);
+        unique.forEach(word => {
+            if (this.ttsQueued.has(word)) return;
+            this.ttsQueued.add(word);
+            this.ttsQueue.push(word);
+        });
+
+        this._drainTTSQueue();
     }
 
     /**
@@ -155,6 +171,25 @@ class PrefetchService {
     async getKeywordsIfReady(chunkId) {
         const cached = await db.chunkKeywords.get(chunkId);
         return cached ? cached.keywords : null;
+    }
+
+    _drainTTSQueue() {
+        while (this.ttsInFlight < this.ttsConcurrency && this.ttsQueue.length > 0) {
+            const word = this.ttsQueue.shift();
+            this.ttsInFlight += 1;
+
+            ttsService.prefetchWord(word)
+                .catch(e => {
+                    console.warn(`[Prefetch] TTS failed for "${word}":`, e.message);
+                })
+                .finally(() => {
+                    this.ttsInFlight -= 1;
+                    this.ttsQueued.delete(word);
+                    if (this.ttsQueue.length > 0) {
+                        this._drainTTSQueue();
+                    }
+                });
+        }
     }
 
     /**

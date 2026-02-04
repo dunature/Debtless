@@ -3,8 +3,11 @@
  * Integrates with local Ollama API for semantic text chunking
  */
 
+import { getThoughtGroupsCache, setThoughtGroupsCache } from '../db/schema';
+import { hashText } from '../utils/hash';
+
 const OLLAMA_API_URL = 'http://localhost:11434/api/generate';
-const DEFAULT_MODEL = 'llama3.1:latest';
+export const DEFAULT_MODEL = 'llama3.1:latest';
 
 // System prompt for semantic chunking
 const CHUNKING_SYSTEM_PROMPT = `You are a reading comprehension assistant specializing in English text analysis.
@@ -266,13 +269,33 @@ Output ONLY valid JSON array:
  * @param {AbortSignal} signal - Optional AbortSignal for cancellation
  */
 export async function splitSentenceIntoGroups(sentence, model = DEFAULT_MODEL, signal = null) {
+    let cacheKey = '';
+    try {
+        cacheKey = await hashText(`${model}|${sentence}`);
+        if (cacheKey) {
+            const cached = await getThoughtGroupsCache(cacheKey);
+            if (cached?.groups && Array.isArray(cached.groups) && cached.groups.length > 0) {
+                return cached.groups;
+            }
+        }
+    } catch (error) {
+        console.warn('[Cache] Thought groups lookup failed:', error);
+    }
+
     const prompt = `${THOUGHT_GROUP_PROMPT}
 
 Sentence:
 ${sentence}`;
 
     const response = await callOllama(prompt, model, signal);
-    return parseJsonResponse(response);
+    const groups = parseJsonResponse(response);
+
+    if (cacheKey && Array.isArray(groups) && groups.length > 0) {
+        setThoughtGroupsCache(cacheKey, groups, model)
+            .catch((error) => console.warn('[Cache] Thought groups store failed:', error));
+    }
+
+    return groups;
 }
 
 /**
