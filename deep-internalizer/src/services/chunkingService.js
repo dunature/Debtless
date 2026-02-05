@@ -5,13 +5,12 @@
 
 import { getThoughtGroupsCache, setThoughtGroupsCache } from '../db/schema';
 import { hashText } from '../utils/hash';
-
-const OLLAMA_API_URL = 'http://localhost:11434/api/generate';
-export const DEFAULT_MODEL = 'llama3.1:latest';
+import { callLLM, getLLMConfig } from './llmClient';
 
 // System prompt for semantic chunking
 const CHUNKING_SYSTEM_PROMPT = `You are a reading comprehension assistant specializing in English text analysis.
 Your task is to divide the given text into logical thematic chunks for deep reading.
+Use the provided THESIS and OUTLINE to align chunk boundaries with the document's major ideas.
 
 For each chunk, provide:
 1. A short title (3-5 words, captures the main idea)
@@ -35,6 +34,25 @@ Rules:
 - Chunks must follow the logical flow of the argument
 - Identify transitions between ideas as natural chunk boundaries
 - Do not overlap chunks`;
+
+// System prompt for document summary (used to guide chunking)
+const DOCUMENT_SUMMARY_PROMPT = `You are a professional reading analyst.
+Create a structured summary that will guide semantic chunking.
+
+Output format (plain text only, exact headings):
+THESIS: <one sentence, max 30 words>
+OUTLINE:
+1. <12-20 words, major idea or transition>
+2. <12-20 words, major idea or transition>
+3. <12-20 words, major idea or transition>
+4. <12-20 words, major idea or transition>
+5. <optional if needed>
+6. <optional if needed>
+
+Rules:
+- Use 4-6 outline points.
+- Each outline point should map to a logical chunk boundary.
+- Keep it concise and concrete. Do not add extra commentary.`;
 
 // System prompt for keyword extraction
 const KEYWORD_EXTRACTION_PROMPT = `You are a vocabulary extraction assistant for English learners.
@@ -94,42 +112,22 @@ function tokenizeSentences(text) {
  * @param {string} model - The model to use
  * @param {AbortSignal} signal - Optional AbortSignal for cancellation
  */
-async function callOllama(prompt, model = DEFAULT_MODEL, signal = null) {
+async function callProviderLLM({ system, user, model, signal, temperature = 0.3, maxTokens = 2048 }) {
     try {
-        const fetchOptions = {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                model,
-                prompt,
-                stream: false,
-                options: {
-                    temperature: 0.3, // Lower for more consistent output
-                    num_predict: 2048
-                }
-            })
-        };
-
-        // Attach signal if provided for request cancellation
-        if (signal) {
-            fetchOptions.signal = signal;
-        }
-
-        const response = await fetch(OLLAMA_API_URL, fetchOptions);
-
-        if (!response.ok) {
-            throw new Error(`Ollama API error: ${response.status}`);
-        }
-
-        const data = await response.json();
-        return data.response;
+        return await callLLM({
+            system,
+            user,
+            temperature,
+            maxTokens,
+            signal,
+            model
+        });
     } catch (error) {
-        // Handle AbortError gracefully
         if (error.name === 'AbortError') {
-            console.log('[Ollama] Request was cancelled');
-            throw error; // Re-throw for caller to handle
+            console.log('[LLM] Request was cancelled');
+            throw error;
         }
-        console.error('Ollama API call failed:', error);
+        console.error('LLM API call failed:', error);
         throw error;
     }
 }
@@ -162,7 +160,25 @@ function parseJsonResponse(response) {
  * @param {string} model - The model to use
  * @param {AbortSignal} signal - Optional AbortSignal for cancellation
  */
-export async function chunkDocument(text, model = DEFAULT_MODEL, signal = null) {
+export async function generateDocumentSummary(text, model, signal = null) {
+    const resolvedModel = model || getLLMConfig().model;
+    const user = `Text:
+${text.substring(0, 6000)}`;
+
+    console.log('[DEBUG] Generating document summary...');
+    const response = await callProviderLLM({
+        system: DOCUMENT_SUMMARY_PROMPT,
+        user,
+        model: resolvedModel,
+        signal,
+        maxTokens: 512
+    });
+    console.log('[DEBUG] Summary response received:', response.substring(0, 100) + '...');
+    return response.trim();
+}
+
+export async function chunkDocument(text, model, signal = null, documentSummary = '') {
+    const resolvedModel = model || getLLMConfig().model;
     const sentences = tokenizeSentences(text);
 
     if (sentences.length === 0) {
@@ -180,13 +196,24 @@ export async function chunkDocument(text, model = DEFAULT_MODEL, signal = null) 
         }];
     }
 
-    const prompt = `${CHUNKING_SYSTEM_PROMPT}
+    const summaryBlock = documentSummary ? `Document summary (for guidance):
+${documentSummary}
 
-Text to analyze (${sentences.length} sentences):
+` : '';
+
+    const user = `${summaryBlock}Text to analyze (${sentences.length} sentences):
 ${text}`;
 
-    const response = await callOllama(prompt, model, signal);
+    console.log('[DEBUG] Calling chunkDocument LLM...');
+    const response = await callProviderLLM({
+        system: CHUNKING_SYSTEM_PROMPT,
+        user,
+        model: resolvedModel,
+        signal
+    });
+    console.log('[DEBUG] Chunking response received:', response.substring(0, 100) + '...');
     const chunks = parseJsonResponse(response);
+    console.log(`[DEBUG] Parsed ${chunks.length} chunks.`);
 
     // Enrich chunks with original text
     return chunks.map(chunk => ({
@@ -203,13 +230,17 @@ ${text}`;
  * @param {string} model - The model to use
  * @param {AbortSignal} signal - Optional AbortSignal for cancellation
  */
-export async function extractKeywords(chunkText, model = DEFAULT_MODEL, signal = null) {
-    const prompt = `${KEYWORD_EXTRACTION_PROMPT}
-
-Paragraph:
+export async function extractKeywords(chunkText, model, signal = null) {
+    const resolvedModel = model || getLLMConfig().model;
+    const user = `Paragraph:
 ${chunkText}`;
 
-    const response = await callOllama(prompt, model, signal);
+    const response = await callProviderLLM({
+        system: KEYWORD_EXTRACTION_PROMPT,
+        user,
+        model: resolvedModel,
+        signal
+    });
     const rawKeywords = parseJsonResponse(response);
 
     // Post-process: Transform tuple slices and fill sentence
@@ -240,7 +271,7 @@ ${chunkText}`;
 
 // generateNewContext is deprecated as it's now merged into extractKeywords for performance
 // Kept commented out for reference or fallback if needed
-// export async function generateNewContext(word, definition, model = DEFAULT_MODEL, signal = null) { ... }
+// export async function generateNewContext(word, definition, model, signal = null) { ... }
 
 const THOUGHT_GROUP_PROMPT = `You are a linguistic expert specializing in English prosody and syntax.
 Your task is to divide a given sentence into "Thought Groups" (semantic chunks) to help learners with phrasing and rhythm.
@@ -268,10 +299,11 @@ Output ONLY valid JSON array:
  * @param {string} model - The model to use
  * @param {AbortSignal} signal - Optional AbortSignal for cancellation
  */
-export async function splitSentenceIntoGroups(sentence, model = DEFAULT_MODEL, signal = null) {
+export async function splitSentenceIntoGroups(sentence, model, signal = null) {
+    const resolvedModel = model || getLLMConfig().model;
     let cacheKey = '';
     try {
-        cacheKey = await hashText(`${model}|${sentence}`);
+        cacheKey = await hashText(`${resolvedModel}|${sentence}`);
         if (cacheKey) {
             const cached = await getThoughtGroupsCache(cacheKey);
             if (cached?.groups && Array.isArray(cached.groups) && cached.groups.length > 0) {
@@ -282,16 +314,19 @@ export async function splitSentenceIntoGroups(sentence, model = DEFAULT_MODEL, s
         console.warn('[Cache] Thought groups lookup failed:', error);
     }
 
-    const prompt = `${THOUGHT_GROUP_PROMPT}
-
-Sentence:
+    const user = `Sentence:
 ${sentence}`;
 
-    const response = await callOllama(prompt, model, signal);
+    const response = await callProviderLLM({
+        system: THOUGHT_GROUP_PROMPT,
+        user,
+        model: resolvedModel,
+        signal
+    });
     const groups = parseJsonResponse(response);
 
     if (cacheKey && Array.isArray(groups) && groups.length > 0) {
-        setThoughtGroupsCache(cacheKey, groups, model)
+        setThoughtGroupsCache(cacheKey, groups, resolvedModel)
             .catch((error) => console.warn('[Cache] Thought groups store failed:', error));
     }
 
@@ -304,15 +339,21 @@ ${sentence}`;
  * @param {string} model - The model to use
  * @param {AbortSignal} signal - Optional AbortSignal for cancellation
  */
-export async function generateCoreThesis(text, model = DEFAULT_MODEL, signal = null) {
-    const prompt = `Summarize the core thesis of this text in ONE sentence (max 30 words).
+export async function generateCoreThesis(text, model, signal = null) {
+    const resolvedModel = model || getLLMConfig().model;
+    const system = `Summarize the core thesis of this text in ONE sentence (max 30 words).
 Focus on the main argument or central idea.
 Output ONLY the thesis statement, nothing else.
-
-Text:
+`;
+    const user = `Text:
 ${text.substring(0, 2000)}`; // Limit input length
 
-    const response = await callOllama(prompt, model, signal);
+    const response = await callProviderLLM({
+        system,
+        user,
+        model: resolvedModel,
+        signal
+    });
     return response.trim();
 }
 
@@ -322,20 +363,25 @@ ${text.substring(0, 2000)}`; // Limit input length
  * @param {string} model - The model to use
  * @param {AbortSignal} signal - Optional AbortSignal for cancellation
  */
-export async function translateSentences(sentences, model = DEFAULT_MODEL, signal = null) {
+export async function translateSentences(sentences, model, signal = null) {
     if (!sentences || sentences.length === 0) return [];
-
-    const prompt = `You are a professional translator.
+    const resolvedModel = model || getLLMConfig().model;
+    const system = `You are a professional translator.
 Translate the following English sentences into natural, accurate Chinese.
 Return ONLY a JSON array of strings, in the same order as the input.
-
-Sentences:
+`;
+    const user = `Sentences:
 ${JSON.stringify(sentences)}
 
 Output Format:
 ["翻译1", "翻译2", ...]`;
 
-    const response = await callOllama(prompt, model, signal);
+    const response = await callProviderLLM({
+        system,
+        user,
+        model: resolvedModel,
+        signal
+    });
     return parseJsonResponse(response);
 }
 
@@ -343,5 +389,6 @@ export default {
     chunkDocument,
     extractKeywords,
     translateSentences,
-    generateCoreThesis
+    generateCoreThesis,
+    generateDocumentSummary
 };

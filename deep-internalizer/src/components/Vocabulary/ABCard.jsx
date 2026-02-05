@@ -101,14 +101,11 @@ export default function ABCard({
         <div className={styles.container}>
             {/* Card indicator */}
             <div className={styles.cardIndicator}>
-                <span className={`${styles.dot} ${showingCard === 'B' ? styles.active : ''}`}>
-                    Card B (New Context)
+                <span className={styles.cardStatus}>
+                    {showingCard === 'B' ? 'Card B · New Context' : 'Card A · Original Context'}
                 </span>
                 <span className={styles.swipeHint}>
-                    {showingCard === 'B' ? '← swipe left for original' : '→ swipe right to go back'}
-                </span>
-                <span className={`${styles.dot} ${showingCard === 'A' ? styles.active : ''}`}>
-                    Card A (Original)
+                    {showingCard === 'B' ? 'Swipe left for original context' : 'Swipe right for new context'}
                 </span>
             </div>
 
@@ -132,7 +129,6 @@ export default function ABCard({
                         transition: isDragging ? 'none' : 'transform 0.3s ease'
                     }}
                 >
-                    <div className={styles.cardLabel}>New Context</div>
                     <p className={styles.contextText}>
                         <HighlightedText
                             text={word.newContext || word.originalContext}
@@ -164,7 +160,6 @@ export default function ABCard({
                 <div
                     className={`${styles.card} ${styles.cardA} ${showingCard === 'B' ? styles.hidden : ''}`}
                 >
-                    <div className={styles.cardLabel}>Original Context</div>
                     <div className={styles.originalInfo}>
                         <div className={styles.wordHeader}>
                             <span className={styles.wordText}>{word.text}</span>

@@ -232,6 +232,70 @@ export async function createWord(chunkId, text, phonetic, definition, originalCo
   return id;
 }
 
+export async function createWordIfMissing(chunkId, text, phonetic, definition, originalContext, newContext = '', slices = [], pos = '', definition_zh = '') {
+  if (!chunkId || !text) {
+    return { created: false, reason: 'missing-data' };
+  }
+
+  const existing = await db.words
+    .where('chunkId')
+    .equals(chunkId)
+    .and(word => word.text === text)
+    .first();
+
+  if (existing) {
+    return { created: false, id: existing.id, reason: 'duplicate' };
+  }
+
+  const id = crypto.randomUUID();
+  const now = new Date().toISOString();
+
+  await db.words.add({
+    id,
+    chunkId,
+    text,
+    phonetic,
+    pos,
+    definition,
+    definition_zh,
+    originalContext,
+    newContext,
+    slices,
+    status: WordStatus.PENDING,
+    addedAt: now
+  });
+
+  return { created: true, id };
+}
+
+export function getDateKey(date = new Date()) {
+  if (typeof date === 'string') return date;
+  return date.toISOString().split('T')[0];
+}
+
+export async function incrementUserStats({ date = new Date(), segments = 0, words = 0 } = {}) {
+  if (!segments && !words) return null;
+
+  const dateKey = getDateKey(date);
+  const existing = await db.userStats.get(dateKey);
+  const next = {
+    date: dateKey,
+    segments: (existing?.segments || 0) + segments,
+    words: (existing?.words || 0) + words
+  };
+
+  await db.userStats.put(next);
+  return next;
+}
+
+export async function addReviewRecord(wordId, action) {
+  if (!wordId || !action) return null;
+  const id = crypto.randomUUID();
+  const reviewedAt = new Date().toISOString();
+  await db.reviewRecords.add({ id, wordId, action, reviewedAt });
+  return id;
+}
+
 export async function getPendingWords() {
   return await db.words
     .where('status')
@@ -256,12 +320,13 @@ export async function getAnalysisCache(hash) {
   return await db.analysisCache.get(hash);
 }
 
-export async function setAnalysisCache(hash, coreThesis, chunks, model = '') {
+export async function setAnalysisCache(hash, coreThesis, chunks, model = '', summary = '') {
   if (!hash) return;
   await db.analysisCache.put({
     hash,
     coreThesis,
     chunks,
+    summary,
     model,
     createdAt: Date.now()
   });

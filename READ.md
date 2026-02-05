@@ -38,7 +38,77 @@
 
 ---
 
-## 5. 用户指南：认知内化之旅 (User Guide: The Cognitive Journey)
+## 5. 核心功能模块概览 (Core Functional Modules)
+
+此部分定义了系统的功能骨架及其对应的技术实现。
+
+### 5.1 导入与解析模块 (Ingestion & Parsing)
+- **功能**: 支持 `.pdf` / `.docx` / `.txt` 导入，解析文本，自动清洗断行，展示解析进度与耗时。
+- **关键文件**: [ImportModal.jsx](file:///Users/a2030/01-Project/English%20Learning/deep-internalizer/src/components/common/ImportModal.jsx), `fileParser.js`
+- **关键优化**: 分批 PDF 解析、进度显示、自动清洗 + 可撤销、解析耗时统计。
+
+### 5.2 AI 语义处理模块 (Cognitive Processing)
+- **功能**: 生成核心论点 (Thesis)、语义切分 (Chunks)、关键词提取、思维意群划分 (Thought Groups)、句子翻译。
+- **关键文件**: [chunkingService.js](file:///Users/a2030/01-Project/English%20Learning/deep-internalizer/src/services/chunkingService.js)
+- **优化与缓存**:
+  - 文档分析缓存 (core thesis + chunks)
+  - 句子意群缓存 (thought groups)
+  - 关键词、翻译缓存 (IndexedDB)
+
+### 5.3 Layer 0: 全局蓝图 (Global Strategic Map)
+- **功能**: 展示文档核心论点、语义块概览、完成进度。
+- **关键文件**: [GlobalBlueprint.jsx](file:///Users/a2030/01-Project/English%20Learning/deep-internalizer/src/components/Layer0/GlobalBlueprint.jsx)
+- **输出**: 点击某个 Chunk 进入 Layer 1。
+
+### 5.4 Layer 1: 深度内化循环 (Tactical Immersion)
+- **功能**: 四步学习流程，强制顺序推进。
+- **关键文件**: [SegmentLoop.jsx](file:///Users/a2030/01-Project/English%20Learning/deep-internalizer/src/components/Layer1/SegmentLoop.jsx)
+  - **Step 1：宏观语境**（summary + 原文预览）
+  - **Step 2：词汇构建**（关键词卡片 + 音节拆分 + 原文回看）
+  - **Step 3：意群训练**（句子分组 + TTS 发音 + 翻译）
+  - **Step 4：流畅阅读**（计时 + WPM 计算）
+
+### 5.5 TTS 音频模块 (Audio Engine)
+- **功能**: 词汇级缓存、音节级缓存、句子即时生成。
+- **关键文件**: [ttsService.js](file:///Users/a2030/01-Project/English%20Learning/deep-internalizer/src/services/ttsService.js), `useTTS.js`
+- **优化**: 缓存命中、预取队列限并发、减少重复请求。
+
+### 5.6 债务与复习系统 (Debt & Review System)
+- **功能**: 新词进入 debt，必须复习后才能继续阅读。
+- **关键文件**: [VocabularyReview.jsx](file:///Users/a2030/01-Project/English%20Learning/deep-internalizer/src/components/VocabularyReview.jsx), `LaunchInterception.jsx`
+- **行为**: 阻断新内容 → 进入 Review → Archive or Keep。
+
+### 5.7 用户统计与数据管理 (User Insights)
+- **功能**: 热力图统计、导出/导入备份、清空数据。
+- **关键文件**: [UserProfile.jsx](file:///Users/a2030/01-Project/English%20Learning/deep-internalizer/src/components/UserProfile.jsx), `Heatmap.jsx`
+
+---
+
+## 6. 整体流程：从用户视角 (The User Journey)
+
+```mermaid
+graph TD
+    A[启动应用] --> B{是否有债务?}
+    B -- 是 --> C[强制进入复习 LaunchInterception]
+    C --> D[VocabularyReview: Archive or Keep]
+    D --> B
+    B -- 否 --> E[首页: 空态或已有文档]
+    E --> F[导入流程]
+    F --> G[解析并显示进度]
+    G --> H[LLM 分析: 论点 + 分段]
+    H --> I[写入 IndexedDB]
+    I --> J[进入 Layer 0 地图]
+    J --> K[选择 Chunk 进入 Layer 1]
+    K --> L[后台预取 TTS / 关键词]
+    L --> M[Step 1 - 4 循环]
+    M --> N[完成后返回 Layer 0]
+    M -- 触发新词 --> O[债务增加]
+    O --> C
+```
+
+---
+
+## 7. 用户指南：认知内化之旅 (User Guide: The Cognitive Journey)
 
 本节详细说明如何使用 Deep Internalizer 将碎片化的信息转化为深层的认知资产。
 

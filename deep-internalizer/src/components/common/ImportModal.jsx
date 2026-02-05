@@ -7,7 +7,23 @@ import { parseFile, cleanTextPreserveParagraphs } from '../../utils/fileParser';
 import ThinkingProcess from './ThinkingProcess';
 import styles from './ImportModal.module.css';
 
-export default function ImportModal({ isOpen, onClose, onImport, isLoading, processingLogs, processingStep }) {
+export default function ImportModal({
+    isOpen,
+    onClose,
+    onImport,
+    isLoading,
+    processingLogs,
+    processingStep,
+    processingMeta,
+    processingSteps,
+    summaryDraft,
+    summaryNotice,
+    summaryError,
+    onSummaryChange,
+    onSummaryConfirm,
+    onSummaryCancel,
+    onSummaryRegenerate
+}) {
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
     const [error, setError] = useState('');
@@ -181,6 +197,7 @@ export default function ImportModal({ isOpen, onClose, onImport, isLoading, proc
     };
 
     if (!isOpen) return null;
+    const isSummaryReview = Boolean(summaryDraft);
 
     return (
         <div className="overlay" onClick={handleClose}>
@@ -197,7 +214,56 @@ export default function ImportModal({ isOpen, onClose, onImport, isLoading, proc
 
                 {isLoading ? (
                     <div className={styles.thinkingContainer}>
-                        <ThinkingProcess logs={processingLogs} currentStep={processingStep} />
+                        <ThinkingProcess
+                            logs={processingLogs}
+                            currentStep={processingStep}
+                            meta={processingMeta}
+                            steps={processingSteps}
+                        />
+                    </div>
+                ) : isSummaryReview ? (
+                    <div className={styles.summaryContainer}>
+                        <header className={styles.summaryHeader}>
+                            <h2>Review Summary</h2>
+                            <p className={styles.summaryHint}>
+                                Please keep the <strong>THESIS</strong> and <strong>OUTLINE</strong> headings.
+                            </p>
+                            {summaryNotice && (
+                                <p className={styles.summaryNotice}>{summaryNotice}</p>
+                            )}
+                            {summaryError && (
+                                <p className={styles.summaryError}>{summaryError}</p>
+                            )}
+                        </header>
+                        <textarea
+                            className={styles.summaryTextarea}
+                            value={summaryDraft}
+                            onChange={(e) => onSummaryChange?.(e.target.value)}
+                            rows={10}
+                        />
+                        <div className={styles.summaryActions}>
+                            <button
+                                type="button"
+                                className="btn btn-secondary"
+                                onClick={onSummaryCancel}
+                            >
+                                Back to Edit
+                            </button>
+                            <button
+                                type="button"
+                                className="btn btn-ghost"
+                                onClick={onSummaryRegenerate}
+                            >
+                                Regenerate Summary
+                            </button>
+                            <button
+                                type="button"
+                                className="btn btn-primary"
+                                onClick={() => onSummaryConfirm?.(summaryDraft)}
+                            >
+                                Continue to Chunking
+                            </button>
+                        </div>
                     </div>
                 ) : (
                     <form onSubmit={handleSubmit} className={styles.form}>

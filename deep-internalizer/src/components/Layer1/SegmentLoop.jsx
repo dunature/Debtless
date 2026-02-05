@@ -62,6 +62,15 @@ export default function SegmentLoop({
         const controller = new AbortController();
         abortRef.current = controller;
 
+        // Fast path: load cached keywords immediately if available
+        prefetchService.getKeywordsIfReady(currentChunkId)
+            .then(cached => {
+                if (!controller.signal.aborted && cached) {
+                    setPrefetchedWords(cached);
+                }
+            })
+            .catch(() => {});
+
         // Fetch keywords in background
         prefetchService.prefetchKeywords(currentChunkId, chunk.originalText, controller.signal)
             .then(keywords => {
@@ -84,9 +93,43 @@ export default function SegmentLoop({
 
     // Prefetch TTS when entering Step 2 (Vocabulary Build)
     useEffect(() => {
-        if (currentStep === 2 && words.length > 0) {
-            prefetchService.prefetchTTSForWords(words);
+        if (currentStep !== 2 || words.length === 0) return;
+
+        // Prioritize first 1-2 words for faster initial experience
+        const firstBatch = words.slice(0, 2);
+        prefetchService.prefetchTTSForWords(firstBatch);
+
+        const rest = words.slice(2);
+        if (rest.length === 0) return;
+
+        let cancel = () => {};
+        if (typeof requestIdleCallback !== 'undefined') {
+            const id = requestIdleCallback(() => prefetchService.prefetchTTSForWords(rest));
+            cancel = () => cancelIdleCallback(id);
+        } else {
+            const id = setTimeout(() => prefetchService.prefetchTTSForWords(rest), 0);
+            cancel = () => clearTimeout(id);
         }
+
+        return () => cancel();
+    }, [currentStep, words]);
+
+    // Warm up TTS for first 1-2 words during Step 1
+    useEffect(() => {
+        if (currentStep !== 1 || words.length === 0) return;
+
+        const firstBatch = words.slice(0, 2);
+        let cancel = () => {};
+
+        if (typeof requestIdleCallback !== 'undefined') {
+            const id = requestIdleCallback(() => prefetchService.prefetchTTSForWords(firstBatch));
+            cancel = () => cancelIdleCallback(id);
+        } else {
+            const id = setTimeout(() => prefetchService.prefetchTTSForWords(firstBatch), 0);
+            cancel = () => clearTimeout(id);
+        }
+
+        return () => cancel();
     }, [currentStep, words]);
 
     if (!chunk) {
@@ -108,6 +151,7 @@ export default function SegmentLoop({
                         isLoading={isLoadingWords}
                         onWordAction={onWordAction}
                         isBilingual={isBilingual}
+                        chunkId={chunk?.id}
                         onComplete={() => onStepComplete(2)}
                     />
                 );
@@ -201,15 +245,22 @@ function Step1MacroContext({ chunk, isBilingual, onComplete }) {
 /**
  * Step 2: Vocabulary Build - Key words with original context
  */
-function Step2VocabularyBuild({ words, isLoading: isLoadingWords, onWordAction, onComplete, isBilingual }) {
+function Step2VocabularyBuild({ words, isLoading: isLoadingWords, onWordAction, onComplete, isBilingual, chunkId }) {
     const [currentWordIndex, setCurrentWordIndex] = useState(0);
     const [showPeek, setShowPeek] = useState(false);
     const [isDeferred, setIsDeferred] = useState(false);
+    const [isAdding, setIsAdding] = useState(false);
+    const [addedWords, setAddedWords] = useState(() => new Set());
     const { speak, isLoading } = useTTS();
+    const lastAddKeyRef = useRef(null);
+    const addLockRef = useRef(false);
+    const lastAddAtRef = useRef(0);
 
     const currentWord = words[currentWordIndex];
     const hasWords = words.length > 0;
     const isLastWord = currentWordIndex >= words.length - 1;
+    const currentWordKey = currentWord?.word || currentWord?.text || '';
+    const alreadyAdded = currentWordKey ? addedWords.has(currentWordKey) : false;
 
     useEffect(() => {
         if (isLoadingWords) {
@@ -231,6 +282,22 @@ function Step2VocabularyBuild({ words, isLoading: isLoadingWords, onWordAction, 
         return () => cancel();
     }, [isLoadingWords, words.length]);
 
+    useEffect(() => {
+        setCurrentWordIndex(0);
+        setShowPeek(false);
+        setIsAdding(false);
+        setAddedWords(new Set());
+        lastAddKeyRef.current = null;
+        addLockRef.current = false;
+        lastAddAtRef.current = 0;
+    }, [chunkId]);
+
+    useEffect(() => {
+        if (words.length > 0 && currentWordIndex >= words.length) {
+            setCurrentWordIndex(0);
+        }
+    }, [words.length, currentWordIndex]);
+
     const handleNext = () => {
         if (isLastWord) {
             onComplete();
@@ -240,14 +307,50 @@ function Step2VocabularyBuild({ words, isLoading: isLoadingWords, onWordAction, 
         }
     };
 
-    const handleAddWord = () => {
-        if (currentWord) {
-            onWordAction('add', currentWord);
-            handleNext();
+    const handleAddWord = async () => {
+        if (!currentWord || isAdding || addLockRef.current) return { created: false, reason: 'busy' };
+
+        const key = currentWord.word || currentWord.text || '';
+        if (!key) return { created: false, reason: 'missing-key' };
+
+        const now = Date.now();
+        if (now - lastAddAtRef.current < 350) {
+            return { created: false, reason: 'throttled' };
+        }
+        lastAddAtRef.current = now;
+
+        // Guard against duplicate triggers on the same word
+        if (lastAddKeyRef.current === key) {
+            return { created: false, reason: 'duplicate-click' };
+        }
+
+        if (alreadyAdded) {
+            return { created: false, reason: 'already-added' };
+        }
+
+        lastAddKeyRef.current = key;
+        addLockRef.current = true;
+        setIsAdding(true);
+
+        try {
+            const result = await onWordAction('add', currentWord);
+            const stored = result?.created || result?.reason === 'duplicate';
+            if (stored) {
+                setAddedWords(prev => {
+                    const next = new Set(prev);
+                    next.add(key);
+                    return next;
+                });
+            }
+            return result || { created: false };
+        } finally {
+            setIsAdding(false);
+            addLockRef.current = false;
         }
     };
 
     const handleSkipWord = () => {
+        if (isAdding || addLockRef.current) return;
         handleNext();
     };
 
@@ -357,10 +460,11 @@ function Step2VocabularyBuild({ words, isLoading: isLoadingWords, onWordAction, 
                 <button
                     className="btn btn-secondary"
                     onClick={handleSkipWord}
+                    disabled={isAdding}
                 >
-                    I know this
+                    {alreadyAdded ? (isLastWord ? 'Finish →' : 'Next word →') : 'I know this'}
                 </button>
-                <AddButton onClick={handleAddWord} />
+                <AddButton onClick={handleAddWord} isBusy={isAdding} isAdded={alreadyAdded} />
             </div>
 
 
@@ -606,27 +710,85 @@ function Step4FlowPractice({ chunk, onComplete }) {
 /**
  * Helper: Add Button with Feedback
  */
-function AddButton({ onClick }) {
-    const [isAdded, setIsAdded] = useState(false);
+function AddButton({ onClick, isBusy = false, isAdded = false }) {
+    const [justAdded, setJustAdded] = useState(false);
+    const [isPressing, setIsPressing] = useState(false);
+    const skipClickRef = useRef(false);
+    const skipTimeoutRef = useRef(null);
 
-    const handleClick = () => {
-        setIsAdded(true);
-        onClick();
-        setTimeout(() => setIsAdded(false), 2000);
+    useEffect(() => {
+        return () => {
+            if (skipTimeoutRef.current) {
+                clearTimeout(skipTimeoutRef.current);
+            }
+        };
+    }, []);
+
+    useEffect(() => {
+        if (!isBusy) {
+            setIsPressing(false);
+        }
+    }, [isBusy]);
+
+    const triggerAdd = async () => {
+        if (isBusy || isAdded) return;
+        setIsPressing(true);
+
+        let stored = false;
+        try {
+            const result = await onClick?.();
+            stored = result?.created || result?.reason === 'duplicate';
+        } finally {
+            if (stored) {
+                setJustAdded(true);
+                setTimeout(() => setJustAdded(false), 1500);
+            }
+            setIsPressing(false);
+        }
     };
+
+    const handlePointerDown = (e) => {
+        if (isBusy || isAdded) return;
+        if (e.button != null && e.button !== 0) return;
+        e.preventDefault();
+
+        skipClickRef.current = true;
+        if (skipTimeoutRef.current) {
+            clearTimeout(skipTimeoutRef.current);
+        }
+        skipTimeoutRef.current = setTimeout(() => {
+            skipClickRef.current = false;
+        }, 400);
+
+        triggerAdd();
+    };
+
+    const handleClick = (e) => {
+        if (skipClickRef.current) {
+            e.preventDefault();
+            return;
+        }
+        triggerAdd();
+    };
+
+    const showAdded = isAdded || justAdded;
+    const showAdding = isBusy || isPressing;
+    const disabled = showAdding || isAdded || justAdded;
+    const label = showAdding ? 'Adding...' : (showAdded ? 'Added ✓' : 'Add to vocabulary');
 
     return (
         <button
-            className={`btn ${isAdded ? 'btn-success' : 'btn-primary'}`}
+            className={`btn ${showAdded ? 'btn-success' : 'btn-primary'}`}
+            onPointerDown={handlePointerDown}
             onClick={handleClick}
-            disabled={isAdded}
+            disabled={disabled}
             style={{
-                backgroundColor: isAdded ? 'var(--color-success)' : undefined,
-                borderColor: isAdded ? 'var(--color-success)' : undefined,
+                backgroundColor: showAdded ? 'var(--color-success)' : undefined,
+                borderColor: showAdded ? 'var(--color-success)' : undefined,
                 transition: 'all 0.3s ease'
             }}
         >
-            {isAdded ? 'Added ✓' : 'Add to vocabulary'}
+            {label}
         </button>
     );
 }

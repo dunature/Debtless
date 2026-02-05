@@ -84,7 +84,12 @@ export default function VocabularyReview({
                 <button className="btn btn-ghost" onClick={onBack}>
                     ← Exit
                 </button>
-                <div className={styles.progress}>
+                <div className={styles.headerCenter}>
+                    <span className={styles.headerLabel}>Review Session</span>
+                    <h2>Vocabulary Review</h2>
+                    <p className={styles.headerDesc}>Clear context debt one decision at a time.</p>
+                </div>
+                <div className={styles.headerRight}>
                     <span className={styles.progressText}>
                         {currentIndex + 1} / {words.length}
                     </span>
@@ -95,28 +100,42 @@ export default function VocabularyReview({
                         />
                     </div>
                 </div>
-                <span className={styles.remaining}>
-                    {remaining} left
-                </span>
             </header>
 
-            {/* Word card */}
-            <main className={styles.main}>
-                <ABCard
-                    word={currentWord}
-                    onKeep={handleKeep}
-                    onArchive={handleArchive}
-                    onNext={handleNext}
-                />
-            </main>
+            <div className={styles.reviewLayout}>
+                <aside className={styles.sidePanel}>
+                    <div className={styles.panelCard}>
+                        <div className={styles.panelRow}>
+                            <span className={styles.panelLabel}>Remaining</span>
+                            <span className={styles.panelValue}>{remaining}</span>
+                        </div>
+                        <div className={styles.panelRow}>
+                            <span className={styles.panelLabel}>Kept</span>
+                            <span className={styles.panelValue}>{stats.kept}</span>
+                        </div>
+                        <div className={styles.panelRow}>
+                            <span className={styles.panelLabel}>Archived</span>
+                            <span className={styles.panelValue}>{stats.archived}</span>
+                        </div>
+                    </div>
 
-            {/* Session stats */}
-            <footer className={styles.footer}>
-                <div className={styles.sessionStats}>
-                    <span>🔄 {stats.kept} kept</span>
-                    <span>✓ {stats.archived} archived</span>
-                </div>
-            </footer>
+                    <div className={styles.panelCard}>
+                        <h4 className={styles.panelTitle}>How to Review</h4>
+                        <p className={styles.panelHint}>Swipe the card to compare contexts.</p>
+                        <p className={styles.panelHint}>Keep = review again. Archive = mastered.</p>
+                    </div>
+                </aside>
+
+                {/* Word card */}
+                <main className={styles.main}>
+                    <ABCard
+                        word={currentWord}
+                        onKeep={handleKeep}
+                        onArchive={handleArchive}
+                        onNext={handleNext}
+                    />
+                </main>
+            </div>
         </div>
     );
 }
