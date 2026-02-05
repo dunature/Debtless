@@ -2,7 +2,7 @@
 
 [![Vite](https://img.shields.io/badge/Vite-7.x-646CFF?logo=vite)](https://vitejs.dev/)
 [![React](https://img.shields.io/badge/React-19.x-61DAFB?logo=react)](https://react.dev/)
-[![Status](https://img.shields.io/badge/Status-Internal_Beta_v0.1.0--beta.1-yellow)]()
+[![Status](https://img.shields.io/badge/Status-Internal_Beta_v0.2.0-yellow)]()
 [![Performance](https://img.shields.io/badge/Performance-Optimized-brightgreen)]()
 [![Dexie](https://img.shields.io/badge/IndexedDB-Local_First-blue)](https://dexie.org/)
 [![PWA](https://img.shields.io/badge/PWA-Supported-orange)](https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps)
@@ -14,6 +14,99 @@
 **Deep Internalizer** is a specialized cognitive reading platform. It transforms passive reading into a structured, multi-layered "internalization" process, ensuring every word and concept is anchored in its original context.
 
 **Deep Internalizer** 是一个基于认知心理学的深度阅读平台。它将被动阅读转化为结构化的多层“内化”过程，确保每个单词和概念都牢固地锚定在其原始语境中。
+
+---
+
+## ✅ 功能模块概述（用户视角）
+- **文档导入**：支持 `.txt/.pdf/.docx`，自动解析为可阅读的文本。
+- **全局蓝图（Layer 0）**：生成核心论点与语义分块，形成“全局理解地图”。
+- **沉浸循环（Layer 1）**：对每个 Chunk 进行 4 步深度内化：
+  - 宏观语境 → 词汇构建 → 发音训练 → 心流练习
+- **词汇债务与复习**：加入单词本后形成“待复习债务”，通过复习界面清理。
+- **个人统计**：阅读进度、掌握词汇、复习次数、热力图活跃度一目了然。
+- **数据管理**：备份、导入、清理缓存/词汇/进度，确保本地数据可控。
+- **本地 TTS**：高质量语音朗读，支持缓存与复用，离线也能流畅使用。
+
+---
+
+## 🧭 使用流程（用户视角）
+1. **导入文本/文档** → 系统自动分析并生成全局逻辑地图（Layer 0）
+2. **选择 Chunk** → 进入 4 步沉浸循环（Layer 1）
+3. **词汇构建** → 加入单词本形成复习债务
+4. **阅读推进** → 完成 Chunk 后记录进度与统计
+5. **复习清债** → 在“复习页面”完成 Keep / Archive
+6. **个人统计 & 数据管理** → 查看学习轨迹、导出数据
+
+---
+
+## 🆕 新手使用说明（从零开始）
+
+### 0) 必备环境
+- **Node.js 18+**
+- **Python 3.11+**（用于本地 TTS）
+- **Ollama**（本地大模型推理）
+
+---
+
+### 1) 安装并启动本地 LLM（Ollama）
+1. 安装 Ollama  
+2. 拉取模型（默认使用 `llama3.1:latest`）：
+   ```bash
+   ollama pull llama3.1:latest
+   ```
+3. 启动 Ollama（默认端口 11434）
+
+如果你想使用云端模型（DeepSeek/GLM），请在环境变量中配置：
+```bash
+VITE_LLM_PROVIDER=deepseek
+VITE_DEEPSEEK_BASE_URL=https://api.deepseek.com
+VITE_DEEPSEEK_MODEL=deepseek-chat
+VITE_DEEPSEEK_API_KEY=your_key_here
+```
+
+---
+
+### 2) 安装并启动本地 TTS（推荐）
+本项目内置 Kokoro-TTS，本地运行即可。
+
+#### 一键启动（macOS/Linux）
+```bash
+./scripts/start_tts.sh
+```
+
+如果 `torch` 安装失败，请根据你的系统参考 PyTorch 官方安装指引后重试。
+
+#### Windows 用户建议
+- 使用 WSL 运行 `start_tts.sh`
+- 或手动执行以下步骤：
+  ```bash
+  cd scripts/tts_server
+  python -m venv venv
+  venv\Scripts\activate
+  pip install -r requirements.txt
+  python server.py
+  ```
+
+TTS 默认地址：
+```
+http://localhost:8000/v1/audio/speech
+```
+如果你在其他端口运行，可以在 `.env` 中设置：
+```bash
+VITE_TTS_API_URL=http://localhost:8000/v1/audio/speech
+```
+
+---
+
+### 3) 启动前端项目
+```bash
+npm install
+npm run dev
+```
+打开浏览器访问：
+```
+http://localhost:5173
+```
 
 ---
 
@@ -145,6 +238,30 @@ npm run dev
 # App runs on http://localhost:5173
 ```
 
+### 1.1 LLM Providers (Optional)
+By default the app uses local Ollama. You can switch to remote providers for speed.
+
+```bash
+# Provider: ollama | deepseek | glm
+VITE_LLM_PROVIDER=ollama
+
+# Ollama
+VITE_OLLAMA_BASE_URL=http://localhost:11434
+VITE_OLLAMA_MODEL=llama3.1:latest
+
+# DeepSeek
+VITE_DEEPSEEK_BASE_URL=https://api.deepseek.com
+VITE_DEEPSEEK_MODEL=deepseek-chat
+VITE_DEEPSEEK_API_KEY=your_key_here
+
+# GLM (Z.AI)
+VITE_GLM_BASE_URL=https://api.z.ai/api/paas/v4
+VITE_GLM_MODEL=glm-4.7
+VITE_GLM_API_KEY=your_key_here
+```
+
+> NOTE: Remote APIs may require a backend proxy if CORS is enforced by the provider.
+
 ### 2. Start TTS Server (启动语音服务)
 ```bash
 ./scripts/start_tts.sh
@@ -160,5 +277,4 @@ MIT - 为个人成长与深度阅读而设计。
 ---
 
 > [!NOTE]
-> **Internal Beta v0.1.0-beta.1**: This version focuses on "Zero-Wait" performance optimizations and architectural refactoring for a smoother reading experience.
-
+> **Internal Beta v0.2.0**: This version focuses on "Zero-Wait" performance optimizations and architectural refactoring for a smoother reading experience.
