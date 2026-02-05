@@ -1,3 +1,6 @@
+// Import worker directly using Vite's worker suffix
+import PDFWorker from 'pdfjs-dist/legacy/build/pdf.worker.mjs?worker';
+
 let pdfjsLibPromise = null;
 let mammothPromise = null;
 const PDF_CONCURRENCY = 3;
@@ -11,16 +14,13 @@ function reportProgress(onProgress, data) {
 
 async function loadPdfjs() {
     if (!pdfjsLibPromise) {
-        pdfjsLibPromise = import('pdfjs-dist');
+        pdfjsLibPromise = import('pdfjs-dist/legacy/build/pdf');
     }
     const pdfjsLib = await pdfjsLibPromise;
 
-    // Set up worker once after module load
-    if (typeof window !== 'undefined' && 'Worker' in window && !pdfjsLib.GlobalWorkerOptions.workerSrc) {
-        pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-            'pdfjs-dist/build/pdf.worker.mjs',
-            import.meta.url
-        ).toString();
+    // Use Vite's worker import mechanism
+    if (!pdfjsLib.GlobalWorkerOptions.workerPort) {
+        pdfjsLib.GlobalWorkerOptions.workerPort = new PDFWorker();
     }
 
     return pdfjsLib;
